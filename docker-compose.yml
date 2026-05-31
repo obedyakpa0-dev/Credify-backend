@@ -1,0 +1,34 @@
+services:
+  backend:
+    build: .
+    container_name: credenceEdge
+
+    ports:
+      - "5000:5000"
+
+    env_file:
+      - .env
+
+    depends_on:
+      - mongodb
+
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+    command: npm run dev
+
+
+  mongodb:
+    image: mongo:7
+    container_name: credenceEdge-MongoDB
+
+    ports:
+      - "27017:27017"
+
+    volumes:
+      - mongo-data:/data/db
+
+
+volumes:
+  mongo-data:
