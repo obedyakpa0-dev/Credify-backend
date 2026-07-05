@@ -1,7 +1,7 @@
 services:
   backend:
     build: .
-    container_name: credenceEdge
+    container_name: credify
 
     ports:
       - "5000:5000"
@@ -21,7 +21,7 @@ services:
 
   mongodb:
     image: mongo:7
-    container_name: credenceEdge-MongoDB
+    container_name: Credify-MongoDB
 
     ports:
       - "27017:27017"

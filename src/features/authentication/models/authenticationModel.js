@@ -2,20 +2,12 @@ const mongoose = require("mongoose");
 
 const authenticationSchema = new mongoose.Schema(
   {
-    firstName: {
+    name: {
       type: String,
       required: true,
       trim: true,
-      minlength: 2,
-      maxlength: 50,
     },
-    lastName: {
-      type: String,
-      required: true,
-      trim: true,
-      minlength: 2,
-      maxlength: 50,
-    },
+
     email: {
       type: String,
       required: true,
@@ -23,26 +15,84 @@ const authenticationSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+
     password: {
       type: String,
       required: true,
       minlength: 8,
       select: false,
     },
+
+    university: {
+      type: String,
+      default: "",
+    },
+
+    programme: {
+      type: String,
+      default: "",
+    },
+
+    companyName: {
+      type: String,
+      default: "",
+    },
+
+    phone: {
+      type: String,
+      default: "",
+    },
+
+    location: {
+      type: String,
+      default: "",
+    },
+
+    industry: {
+      type: String,
+      default: "",
+    },
+
+    description: {
+      type: String,
+      default: "",
+    },
+
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    verificationToken: {
+      type: String,
+      default: "",
+    },
+
+    verificationTokenExpiry: {
+      type: Date,
+    },
+
+    resetToken: {
+      type: String,
+      default: "",
+    },
+
+    resetTokenExpiry: {
+      type: Date,
+    },
+
     role: {
       type: String,
-      enum: ["user", "admin", "company"],
-      default: "user",
+      enum: ["student", "graduate", "company", "admin"],
+      default: "student",
     },
   },
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
-const AuthenticationUser =
+module.exports =
   mongoose.models.AuthenticationUser ||
   mongoose.model("AuthenticationUser", authenticationSchema);
-
-module.exports = AuthenticationUser;

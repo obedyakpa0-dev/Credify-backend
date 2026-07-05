@@ -15,7 +15,9 @@ const resolveStatusCode = (error) => {
 const handleErrorResponse = (res, error) => {
   const statusCode = resolveStatusCode(error);
   const message =
-    statusCode === 500 ? "Something went wrong. Please try again later." : error.message;
+    statusCode === 500
+      ? "Something went wrong. Please try again later."
+      : error.message;
 
   res.status(statusCode).json({
     success: false,
@@ -51,10 +53,49 @@ const login = async (req, res) => {
   }
 };
 
+const requestPasswordReset = async (req, res) => {
+  try {
+    await authenticationService.requestPasswordReset(req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: "If the email exists, a password reset link has been sent.",
+    });
+  } catch (error) {
+    return handleErrorResponse(res, error);
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    await authenticationService.resetPassword(req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: "Password has been reset successfully.",
+    });
+  } catch (error) {
+    return handleErrorResponse(res, error);
+  }
+};
+
+const verifyEmail = async (req, res) => {
+  try {
+    await authenticationService.verifyEmail(req.query);
+
+    return res.status(200).json({
+      success: true,
+      message: "Email verified successfully.",
+    });
+  } catch (error) {
+    return handleErrorResponse(res, error);
+  }
+};
+
 const getMe = async (req, res) => {
   try {
     const user = await authenticationService.getAuthenticatedUser(
-      req.headers.authorization
+      req.headers.authorization,
     );
 
     return res.status(200).json({
@@ -69,8 +110,38 @@ const getMe = async (req, res) => {
   }
 };
 
+const updateProfile = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    const updatedUser = await authenticationService.updateUserProfile(
+      req.user.id,
+      req.body,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: {
+        user: updatedUser,
+      },
+    });
+  } catch (error) {
+    return handleErrorResponse(res, error);
+  }
+};
+
 module.exports = {
   register,
   login,
+  requestPasswordReset,
+  resetPassword,
+  verifyEmail,
   getMe,
+  updateProfile,
 };

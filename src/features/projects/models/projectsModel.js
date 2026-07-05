@@ -45,11 +45,17 @@ const projectsSchema = new mongoose.Schema(
       maxlength: 500,
       default: "",
     },
+
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
   },
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 const Project = mongoose.models.Project || mongoose.model("Project", projectsSchema);
