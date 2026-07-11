@@ -26,6 +26,22 @@ const listProjects = async (req, res) => {
   }
 };
 
+// GET /projects/mine — returns the authenticated user's own projects (all approvalStatus)
+const listMyProjects = async (req, res) => {
+  try {
+    const data = await projectsService.listProjects({
+      ...req.query,
+      ownerId: req.user.id,
+    });
+    return sendSuccess(res, {
+      message: "My projects retrieved successfully",
+      data,
+    });
+  } catch (error) {
+    return sendError(res, error);
+  }
+};
+
 const getProjectById = async (req, res) => {
   try {
     const project = await projectsService.getProjectById(req.params.projectId);
@@ -57,6 +73,7 @@ const updateProject = async (req, res) => {
 module.exports = {
   createProject,
   listProjects,
+  listMyProjects,
   getProjectById,
   updateProject,
 };

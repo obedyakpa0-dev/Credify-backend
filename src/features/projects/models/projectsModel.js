@@ -20,6 +20,29 @@ const projectsSchema = new mongoose.Schema(
       maxlength: 4000,
       default: "",
     },
+    skill: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: "",
+    },
+    instructions: {
+      type: String,
+      trim: true,
+      maxlength: 5000,
+      default: "",
+    },
+    duration: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: "Flexible",
+    },
+    type: {
+      type: String,
+      enum: ["Remote", "In-Person", "Hybrid"],
+      default: "Remote",
+    },
     status: {
       type: String,
       enum: ["draft", "active", "completed", "archived"],
@@ -45,7 +68,6 @@ const projectsSchema = new mongoose.Schema(
       maxlength: 500,
       default: "",
     },
-
     approvalStatus: {
       type: String,
       enum: ["pending", "approved", "rejected"],

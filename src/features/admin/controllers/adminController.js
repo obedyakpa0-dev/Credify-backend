@@ -110,6 +110,54 @@ const updateProjectApproval = async (req, res) => {
   }
 };
 
+const getRatings = async (req, res) => {
+  try {
+    const ratings = await adminService.getRatings();
+    return sendSuccess(res, {
+      message: "Ratings retrieved successfully",
+      data: { ratings },
+    });
+  } catch (error) {
+    return sendError(res, error);
+  }
+};
+
+const deleteRating = async (req, res) => {
+  try {
+    const rating = await adminService.deleteRating(req.params.ratingId);
+    return sendSuccess(res, {
+      message: "Rating deleted successfully",
+      data: { rating },
+    });
+  } catch (error) {
+    return sendError(res, error);
+  }
+};
+
+const deleteProject = async (req, res) => {
+  try {
+    const project = await adminService.deleteProjectAdmin(req.params.projectId);
+    return sendSuccess(res, {
+      message: "Project deleted successfully",
+      data: { project },
+    });
+  } catch (error) {
+    return sendError(res, error);
+  }
+};
+
+const getCertificates = async (_req, res) => {
+  try {
+    const certificates = await adminService.getCertificates();
+    return sendSuccess(res, {
+      message: "Certificates retrieved successfully",
+      data: { certificates },
+    });
+  } catch (error) {
+    return sendError(res, error);
+  }
+};
+
 module.exports = {
   getOverview,
   getUsers,
@@ -118,5 +166,10 @@ module.exports = {
   reviewSubmission,
   rateSubmission,
   getProjects,
-  updateProjectApproval
+  updateProjectApproval,
+  getRatings,
+  deleteRating,
+  deleteProject,
+  getCertificates,
 };
+

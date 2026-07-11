@@ -176,9 +176,31 @@ const deleteProjectAdmin = async (projectId) => {
   return deleted;
 };
 
+const toAdminProjectResponse = (p) => ({
+  id: p._id.toString(),
+  _id: p._id.toString(),
+  ownerId: p.ownerId?._id?.toString() || p.ownerId?.toString(),
+  company: p.ownerId?.companyName || p.ownerId?.name || "—",
+  title: p.title,
+  description: p.description,
+  skill: p.skill,
+  instructions: p.instructions,
+  duration: p.duration,
+  type: p.type,
+  status: p.status,
+  approvalStatus: p.approvalStatus,
+  techStack: p.techStack,
+  tags: p.tags,
+  createdAt: p.createdAt,
+  updatedAt: p.updatedAt,
+});
+
 const getProjects = async (approvalStatus) => {
   const filter = approvalStatus ? { approvalStatus } : {};
-  return Project.find(filter).sort({ createdAt: -1 });
+  const projects = await Project.find(filter)
+    .sort({ createdAt: -1 })
+    .populate("ownerId", "companyName name email");
+  return projects.map(toAdminProjectResponse);
 };
 
 const updateProjectApproval = async (projectId, approvalStatus) => {
@@ -210,9 +232,37 @@ const getCertificates = async () => {
     .populate("projectId", "title");
 };
 
+const getRatings = async () => {
+  const ratings = await Rating.find()
+    .sort({ createdAt: -1 })
+    .populate("projectId", "title")
+    .populate("raterId", "name email");
 
+  const populatedRatings = await Promise.all(
+    ratings.map(async (r) => {
+      const submission = await Submission.findOne({ projectId: r.projectId })
+        .populate("userId", "name email");
+      return {
+        _id: r._id,
+        rating: r.rating,
+        points: r.points,
+        comment: r.comment,
+        createdAt: r.createdAt,
+        project: r.projectId?.title || "—",
+        student: submission?.userId?.name || "—",
+        userId: submission?.userId,
+        submissionId: submission,
+      };
+    })
+  );
+  return populatedRatings;
+};
 
-
+const deleteRating = async (ratingId) => {
+  const deleted = await Rating.findByIdAndDelete(ratingId);
+  if (!deleted) throw createHttpError(404, "Rating not found");
+  return deleted;
+};
 
 module.exports = {
   getAdminOverview,
@@ -225,5 +275,7 @@ module.exports = {
   getCertificates,
   getProjects,
   updateProjectApproval,
-  rateSubmission
+  rateSubmission,
+  getRatings,
+  deleteRating,
 };

@@ -31,9 +31,9 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin@1234!";
 
 const createAdmin = async () => {
   try {
-    console.log(`🗄️  Using MongoDB: ${environment.mongoUri}`);
+    console.log(`Using MongoDB: ${environment.mongoUri}`);
     await mongoose.connect(environment.mongoUri);
-    console.log("✅  Connected to MongoDB\n");
+    console.log(" Connected to MongoDB\n");
 
     const normalizedEmail = ADMIN_EMAIL.trim().toLowerCase();
 
@@ -43,13 +43,13 @@ const createAdmin = async () => {
     });
     if (existing) {
       if (existing.role === "admin") {
-        console.log(`⚠️   Admin already exists: ${normalizedEmail}`);
-        console.log("     No changes made. Exiting.");
+        console.log(`Admin already exists: ${normalizedEmail}`);
+        console.log(" No changes made. Exiting.");
       } else {
         // Promote existing non-admin user to admin
         existing.role = "admin";
         await existing.save();
-        console.log(`🔄  Promoted existing user to admin: ${normalizedEmail}`);
+        console.log(` Promoted existing user to admin: ${normalizedEmail}`);
       }
       await mongoose.disconnect();
       process.exit(0);
@@ -57,7 +57,7 @@ const createAdmin = async () => {
 
     // Validate password strength
     if (ADMIN_PASSWORD.length < 8) {
-      console.error("❌  Password must be at least 8 characters.");
+      console.error("Password must be at least 8 characters.");
       process.exit(1);
     }
 
@@ -76,7 +76,7 @@ const createAdmin = async () => {
       companyName: "",
     });
 
-    console.log("🎉  Admin account created successfully!");
+    console.log(" Admin account created successfully!");
     console.log("─────────────────────────────────────────");
     console.log(`   Name    : ${admin.name}`);
     console.log(`   Email   : ${admin.email}`);
@@ -89,8 +89,8 @@ const createAdmin = async () => {
     await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
-    console.error("❌  Failed to create admin:", error.message);
-    await mongoose.disconnect().catch(() => {});
+    console.error("  Failed to create admin:", error.message);
+    await mongoose.disconnect().catch(() => { });
     process.exit(1);
   }
 };

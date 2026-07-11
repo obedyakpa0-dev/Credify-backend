@@ -24,7 +24,12 @@ const toProjectResponse = (projectDocument) => ({
   ownerId: projectDocument.ownerId.toString(),
   title: projectDocument.title,
   description: projectDocument.description,
+  skill: projectDocument.skill,
+  instructions: projectDocument.instructions,
+  duration: projectDocument.duration,
+  type: projectDocument.type,
   status: projectDocument.status,
+  approvalStatus: projectDocument.approvalStatus,
   techStack: projectDocument.techStack,
   tags: projectDocument.tags,
   repositoryUrl: projectDocument.repositoryUrl,
@@ -46,7 +51,12 @@ const createProject = async (payload = {}, currentUser) => {
     ownerId: currentUser.id,
     title: payload.title.trim(),
     description: payload.description,
-    status: payload.status,
+    skill: payload.skill,
+    instructions: payload.instructions,
+    duration: payload.duration,
+    type: payload.type,
+    status: "draft",
+    approvalStatus: "pending",
     techStack: normalizeStringArray(payload.techStack),
     tags: normalizeStringArray(payload.tags),
     repositoryUrl: payload.repositoryUrl,
@@ -56,11 +66,16 @@ const createProject = async (payload = {}, currentUser) => {
   return toProjectResponse(createdProject);
 };
 
-const listProjects = async ({ status, ownerId, tag, search, limit = 20, page = 1 } = {}) => {
+const listProjects = async ({ approvalStatus, status, ownerId, tag, search, limit = 20, page = 1 } = {}) => {
   const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
   const safePage = Math.max(Number(page) || 1, 1);
   const skip = (safePage - 1) * safeLimit;
   const filter = {};
+
+  // By default public browse only shows approved projects
+  if (approvalStatus) {
+    filter.approvalStatus = approvalStatus;
+  }
 
   if (status) {
     filter.status = status;
@@ -136,6 +151,10 @@ const updateProject = async (projectId, updates = {}, currentUser) => {
   const allowedFields = [
     "title",
     "description",
+    "skill",
+    "instructions",
+    "duration",
+    "type",
     "status",
     "repositoryUrl",
     "liveUrl",

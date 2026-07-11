@@ -9,18 +9,44 @@ const assertObjectId = (value, fieldName) => {
   }
 };
 
-const toSubmissionResponse = (submissionDocument) => ({
-  id: submissionDocument._id.toString(),
-  projectId: submissionDocument.projectId.toString(),
-  userId: submissionDocument.userId.toString(),
-  title: submissionDocument.title,
-  content: submissionDocument.content,
-  attachments: submissionDocument.attachments,
-  status: submissionDocument.status,
-  reviewerNotes: submissionDocument.reviewerNotes,
-  createdAt: submissionDocument.createdAt,
-  updatedAt: submissionDocument.updatedAt,
-});
+const Rating = require("../../ratings/models/ratingsModel");
+
+const toSubmissionResponse = async (submissionDocument) => {
+  const isPopulated = submissionDocument.projectId && typeof submissionDocument.projectId === "object";
+  const projectIdStr = isPopulated ? submissionDocument.projectId._id.toString() : submissionDocument.projectId.toString();
+  
+  const ratingDoc = await Rating.findOne({ projectId: projectIdStr });
+
+  const res = {
+    id: submissionDocument._id.toString(),
+    projectId: projectIdStr,
+    userId: submissionDocument.userId.toString(),
+    title: submissionDocument.title,
+    content: submissionDocument.content,
+    attachments: submissionDocument.attachments,
+    status: submissionDocument.status,
+    reviewerNotes: submissionDocument.reviewerNotes,
+    createdAt: submissionDocument.createdAt,
+    updatedAt: submissionDocument.updatedAt,
+    rating: ratingDoc ? ratingDoc.rating : null,
+    feedback: ratingDoc ? (ratingDoc.comment || submissionDocument.reviewerNotes) : (submissionDocument.reviewerNotes || null),
+  };
+
+  if (isPopulated) {
+    res.project = {
+      id: projectIdStr,
+      title: submissionDocument.projectId.title,
+      description: submissionDocument.projectId.description,
+      status: submissionDocument.projectId.status,
+      techStack: submissionDocument.projectId.techStack,
+      tags: submissionDocument.projectId.tags,
+      repositoryUrl: submissionDocument.projectId.repositoryUrl,
+      liveUrl: submissionDocument.projectId.liveUrl,
+    };
+  }
+
+  return res;
+};
 
 const createSubmission = async (
   { projectId, title, content, attachments } = {},
@@ -54,7 +80,7 @@ const createSubmission = async (
       : [],
   });
 
-  return toSubmissionResponse(createdSubmission);
+  return await toSubmissionResponse(createdSubmission);
 };
 
 const listSubmissions = async (
@@ -90,12 +116,18 @@ const listSubmissions = async (
   }
 
   const [items, total] = await Promise.all([
-    Submission.find(filter).sort({ createdAt: -1 }).skip(skip).limit(safeLimit),
+    Submission.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(safeLimit)
+      .populate("projectId"),
     Submission.countDocuments(filter),
   ]);
 
+  const itemsResponse = await Promise.all(items.map(toSubmissionResponse));
+
   return {
-    items: items.map(toSubmissionResponse),
+    items: itemsResponse,
     pagination: {
       page: safePage,
       limit: safeLimit,
@@ -125,7 +157,7 @@ const getSubmissionById = async (submissionId, currentUser) => {
     throw createHttpError(403, "You are not allowed to access this submission");
   }
 
-  return toSubmissionResponse(submission);
+  return await toSubmissionResponse(submission);
 };
 
 const updateSubmissionStatus = async (
@@ -168,7 +200,7 @@ const updateSubmissionStatus = async (
     throw createHttpError(404, "Submission not found");
   }
 
-  return toSubmissionResponse(updatedSubmission);
+  return await toSubmissionResponse(updatedSubmission);
 };
 
 module.exports = {

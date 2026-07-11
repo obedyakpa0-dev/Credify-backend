@@ -7,9 +7,9 @@ const certificatesSchema = new mongoose.Schema(
       ref: "AuthenticationUser",
       required: true,
     },
-    courseId: {
+    projectId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Course",
+      ref: "Project",
       required: true,
     },
     certificateNumber: {
