@@ -202,6 +202,30 @@ const resolvePayer = async (
   };
 };
 
+const triggerCertificateCreation = async (payment) => {
+  try {
+    const purpose = payment.metadata?.purpose;
+    const projectId = payment.metadata?.certificateId || payment.metadata?.projectId;
+    if (purpose === "certificate" && projectId) {
+      const certificatesService = require("../../certificates/services/certificatesService");
+      const Certificate = require("../../certificates/models/certificatesModel");
+      const existing = await Certificate.findOne({
+        userId: payment.userId,
+        projectId: projectId,
+      });
+      if (!existing) {
+        await certificatesService.createCertificate({
+          userId: payment.userId.toString(),
+          projectId: projectId.toString(),
+        });
+        console.log(`Certificate auto-created for user ${payment.userId} and project ${projectId}`);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to automatically create certificate on payment success:", error);
+  }
+};
+
 const updatePaymentFromPaystackVerification = async (reference, verificationData) => {
   const payment = await getPaymentByReference(reference);
 
@@ -216,6 +240,10 @@ const updatePaymentFromPaystackVerification = async (reference, verificationData
   };
 
   await payment.save();
+
+  if (payment.status === "paid") {
+    await triggerCertificateCreation(payment);
+  }
 
   return payment;
 };
@@ -235,6 +263,10 @@ const updatePaymentStatusById = async (paymentId, status) => {
 
   if (!payment) {
     throw createHttpError(404, "Payment not found");
+  }
+
+  if (normalizedStatus === "paid") {
+    await triggerCertificateCreation(payment);
   }
 
   return payment;

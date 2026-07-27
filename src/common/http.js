@@ -9,11 +9,11 @@ const resolveStatusCode = (error) => {
     return error.statusCode;
   }
 
-  if (error.name === "Validation Error") {
+  if (error.name === "ValidationError" || error.name === "Validation Error") {
     return 400;
   }
 
-  if (error.name === "Cast Error") {
+  if (error.name === "CastError" || error.name === "Cast Error") {
     return 400;
   }
 
@@ -27,11 +27,11 @@ const sendSuccess = (res, { statusCode = 200, message = "Success", data = {} }) 
     data,
   });
 
-  const sendError = (
-    res,
-    error,
-    fallbackMessage = "Something went wrong. Please try again later."
-  ) => {
+const sendError = (
+  res,
+  error,
+  fallbackMessage = "Something went wrong. Please try again later."
+) => {
   const statusCode = resolveStatusCode(error);
   const message = statusCode === 500 ? fallbackMessage : error.message;
 

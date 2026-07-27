@@ -18,7 +18,7 @@ const ROLE_REDIRECT_MAP = {
   admin: "/admin/dashboard",
 };
 
-const VALID_REGISTRATION_ROLES = ["student", "graduate", "company"];
+const VALID_REGISTRATION_ROLES = ["student", "graduate", "company", "admin"];
 
 const sanitizeUser = (userDocument) => ({
   id: userDocument._id.toString(),
@@ -114,6 +114,9 @@ const extractBearerToken = (authorizationHeader) => {
   return token;
 };
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 8;
+
 const registerUser = async ({
   name,
   email,
@@ -125,6 +128,18 @@ const registerUser = async ({
 } = {}) => {
   if (!name || !email || !password || !role) {
     throw createHttpError(400, "name, email, password and role are required");
+  }
+
+  if (!EMAIL_REGEX.test(email.trim())) {
+    throw createHttpError(400, "Invalid email address format");
+  }
+
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    throw createHttpError(400, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+  }
+
+  if (typeof name !== "string" || name.trim().length < 2) {
+    throw createHttpError(400, "Name must be at least 2 characters");
   }
 
   // Prevent self-registration as admin
@@ -191,12 +206,17 @@ const loginUser = async ({ email, password } = {}) => {
     throw createHttpError(400, "email and password are required");
   }
 
+  if (!EMAIL_REGEX.test(email.trim())) {
+    throw createHttpError(400, "Invalid email address format");
+  }
+
   const normalizedEmail = email.trim().toLowerCase();
 
   const foundUser = await AuthenticationUser.findOne({
     email: normalizedEmail,
   }).select("+password");
 
+  // Generic error avoids user enumeration
   if (!foundUser) {
     throw createHttpError(401, "Invalid email or password");
   }
@@ -205,6 +225,11 @@ const loginUser = async ({ email, password } = {}) => {
 
   if (!isPasswordValid) {
     throw createHttpError(401, "Invalid email or password");
+  }
+
+  // Block suspended accounts
+  if (foundUser.isSuspended) {
+    throw createHttpError(403, "Your account has been suspended. Please contact support.");
   }
 
   const accessToken = createAccessToken(foundUser);
@@ -221,15 +246,29 @@ const getAuthenticatedUser = async (authorizationHeader) => {
 
   let payload;
   try {
-    payload = jwt.verify(token, environment.jwtSecret);
-  } catch (_error) {
-    throw createHttpError(401, "Invalid or expired token");
+    payload = jwt.verify(token, environment.jwtSecret, {
+      algorithms: ["HS256"],
+    });
+  } catch (err) {
+    if (err.name === "TokenExpiredError") {
+      throw createHttpError(401, "Your session has expired. Please sign in again.");
+    }
+    throw createHttpError(401, "Invalid token. Please sign in again.");
+  }
+
+  if (!payload.sub || !payload.email || !payload.role) {
+    throw createHttpError(401, "Malformed token payload");
   }
 
   const user = await AuthenticationUser.findById(payload.sub);
 
   if (!user) {
-    throw createHttpError(401, "User does not exist");
+    throw createHttpError(401, "Account not found");
+  }
+
+  // Block all API access for suspended users even if JWT is still valid
+  if (user.isSuspended) {
+    throw createHttpError(403, "Your account has been suspended. Please contact support.");
   }
 
   return sanitizeUser(user);
@@ -332,6 +371,10 @@ const updateUserProfile = async (userId, updates = {}) => {
   });
 
   if (updatePayload.email) {
+    if (!EMAIL_REGEX.test(updatePayload.email)) {
+      throw createHttpError(400, "Invalid email address format");
+    }
+
     const normalizedEmail = updatePayload.email.toLowerCase();
     updatePayload.email = normalizedEmail;
 
@@ -342,6 +385,10 @@ const updateUserProfile = async (userId, updates = {}) => {
       if (existingUser) {
         throw createHttpError(409, "An account with this email already exists");
       }
+      // Reset email verification when address changes
+      updatePayload.emailVerified = false;
+      updatePayload.verificationToken = "";
+      updatePayload.verificationTokenExpiry = null;
     }
   }
 

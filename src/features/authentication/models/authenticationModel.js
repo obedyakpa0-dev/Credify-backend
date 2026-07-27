@@ -58,20 +58,30 @@ const authenticationSchema = new mongoose.Schema(
       default: "",
     },
 
+    supportEmail: {
+      type: String,
+      default: "",
+    },
+
+    website: {
+      type: String,
+      default: "",
+    },
+
     emailVerified: {
       type: Boolean,
       default: false,
     },
 
-    verificationToken: {
+    emailVerificationCode: {
       type: String,
-      default: "",
+      select: false,
     },
 
-    verificationTokenExpiry: {
+    emailVerificationExpires: {
       type: Date,
+      select: false,
     },
-
     resetToken: {
       type: String,
       default: "",
@@ -85,6 +95,11 @@ const authenticationSchema = new mongoose.Schema(
       type: String,
       enum: ["student", "graduate", "company", "admin"],
       default: "student",
+    },
+
+    isSuspended: {
+      type: Boolean,
+      default: false,
     },
   },
   {

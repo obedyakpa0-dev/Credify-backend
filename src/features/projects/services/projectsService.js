@@ -66,14 +66,14 @@ const createProject = async (payload = {}, currentUser) => {
   return toProjectResponse(createdProject);
 };
 
-const listProjects = async ({ approvalStatus, status, ownerId, tag, search, limit = 20, page = 1 } = {}) => {
+const listProjects = async ({ approvalStatus = "approved", status, ownerId, tag, search, limit = 20, page = 1 } = {}) => {
   const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
   const safePage = Math.max(Number(page) || 1, 1);
   const skip = (safePage - 1) * safeLimit;
   const filter = {};
 
-  // By default public browse only shows approved projects
-  if (approvalStatus) {
+  // By default public browse only shows approved projects unless explicit filter is passed
+  if (approvalStatus && approvalStatus !== "all") {
     filter.approvalStatus = approvalStatus;
   }
 
@@ -193,9 +193,35 @@ const updateProject = async (projectId, updates = {}, currentUser) => {
   return toProjectResponse(updatedProject);
 };
 
+const deleteProject = async (projectId, currentUser) => {
+  if (!currentUser?.id) {
+    throw createHttpError(401, "Authentication required");
+  }
+
+  assertObjectId(projectId, "projectId");
+  const project = await Project.findById(projectId);
+
+  if (!project) {
+    throw createHttpError(404, "Project not found");
+  }
+
+  if (
+    project.ownerId.toString() !== currentUser.id &&
+    currentUser.role !== "admin"
+  ) {
+    throw createHttpError(
+      403,
+      "Only the project owner or an admin can delete this project"
+    );
+  }
+
+  await Project.findByIdAndDelete(projectId);
+};
+
 module.exports = {
   createProject,
   listProjects,
   getProjectById,
   updateProject,
+  deleteProject,
 };

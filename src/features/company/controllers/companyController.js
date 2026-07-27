@@ -1,9 +1,9 @@
 const companyService = require("../services/companyService");
 const { sendSuccess, sendError } = require("../../../common/http");
 
-const getCompanyProfile = async (_req, res) => {
+const getCompanyProfile = async (req, res) => {
   try {
-    const profile = await companyService.getCompanyProfile();
+    const profile = await companyService.getCompanyProfile(req.user.id);
     return sendSuccess(res, {
       message: "Company profile retrieved successfully",
       data: { profile },
@@ -15,7 +15,7 @@ const getCompanyProfile = async (_req, res) => {
 
 const updateCompanyProfile = async (req, res) => {
   try {
-    const profile = await companyService.updateCompanyProfile(req.body);
+    const profile = await companyService.updateCompanyProfile(req.user.id, req.body);
     return sendSuccess(res, {
       message: "Company profile updated successfully",
       data: { profile },

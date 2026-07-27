@@ -9,13 +9,34 @@ const router = express.Router();
 
 router.use(requireAuth);
 
-router.post("/", submissionsController.createSubmission);
+// Only students and graduates can create submissions
+router.post(
+  "/",
+  requireRoles(["student", "graduate"]),
+  submissionsController.createSubmission
+);
 router.get("/", submissionsController.listSubmissions);
 router.get("/:submissionId", submissionsController.getSubmissionById);
+
+// Students/graduates update their own submission content (Submit Work)
+router.patch(
+  "/:submissionId",
+  requireRoles(["student", "graduate"]),
+  submissionsController.updateSubmission
+);
+
+// Review submission status (Company / Admin)
 router.patch(
   "/:submissionId/status",
   requireRoles(["admin", "company"]),
   submissionsController.updateSubmissionStatus
+);
+
+// Rate submission (Company / Admin)
+router.post(
+  "/:submissionId/rate",
+  requireRoles(["admin", "company"]),
+  submissionsController.rateSubmission
 );
 
 module.exports = router;

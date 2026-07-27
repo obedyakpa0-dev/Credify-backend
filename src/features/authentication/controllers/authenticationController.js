@@ -5,7 +5,7 @@ const resolveStatusCode = (error) => {
     return error.statusCode;
   }
 
-  if (error.name === "Validation Error") {
+  if (error.name === "ValidationError" || error.name === "Validation Error" || error.name === "CastError") {
     return 400;
   }
 

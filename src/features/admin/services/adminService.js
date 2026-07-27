@@ -20,14 +20,21 @@ const rateSubmission = async (submissionId, raterId, { rating, comment }) => {
 
   // Upsert: if this admin already rated this project, update it instead of erroring on the unique index
   const savedRating = await Rating.findOneAndUpdate(
-    { projectId: submission.projectId, raterId },
+    { submissionId, raterId },
     {
-      $set: { rating, points: POINTS_BY_COLOR[rating], comment: comment || "" },
+      $set: {
+        projectId: submission.projectId,
+        submissionId,
+        raterId,
+        rating,
+        points: POINTS_BY_COLOR[rating],
+        comment: comment || "",
+      },
     },
     { new: true, upsert: true, runValidators: true },
   );
 
-  submission.status = "reviewing";
+  submission.status = "approved";
   await submission.save();
 
   return { submission, rating: savedRating };
@@ -105,7 +112,7 @@ const getAdminOverview = async () => {
 const getAdminUsers = async () => {
   const users = await AuthenticationUser.find()
     .sort({ createdAt: -1 })
-    .select("name email role university companyName emailVerified createdAt");
+    .select("name email role university companyName emailVerified isSuspended createdAt");
 
   return users.map((user) => ({
     id: user._id.toString(),
@@ -115,6 +122,7 @@ const getAdminUsers = async () => {
     university: user.university,
     companyName: user.companyName,
     emailVerified: user.emailVerified,
+    isSuspended: user.isSuspended || false,
     createdAt: user.createdAt,
   }));
 };
@@ -131,6 +139,7 @@ const updateAdminUser = async (userId, updates = {}) => {
     "name",
     "university",
     "programme",
+    "isSuspended",
   ];
   const updatePayload = {};
 
@@ -162,6 +171,7 @@ const updateAdminUser = async (userId, updates = {}) => {
     university: updatedUser.university,
     companyName: updatedUser.companyName,
     emailVerified: updatedUser.emailVerified,
+    isSuspended: updatedUser.isSuspended || false,
     createdAt: updatedUser.createdAt,
   };
 };
@@ -240,7 +250,7 @@ const getRatings = async () => {
 
   const populatedRatings = await Promise.all(
     ratings.map(async (r) => {
-      const submission = await Submission.findOne({ projectId: r.projectId })
+      const submission = await Submission.findById(r.submissionId)
         .populate("userId", "name email");
       return {
         _id: r._id,

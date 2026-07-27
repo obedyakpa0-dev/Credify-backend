@@ -1,41 +1,80 @@
+const AuthenticationUser = require("../../authentication/models/authenticationModel");
 const paymentConfig = require("../../../../config/payment");
+const { createHttpError } = require("../../../common/http");
 
-let companyProfile = {
-  name: "Credify",
-  industry: "EdTech",
-  supportEmail: "support@credify.local",
-  website: "https://credify.local",
-  description: "Company profile for the Credify platform.",
+const ALLOWED_COMPANY_FIELDS = [
+  "name",
+  "companyName",
+  "industry",
+  "description",
+  "phone",
+  "location",
+  "website",
+  "supportEmail",
+];
+
+const toCompanyProfileResponse = (user) => ({
+  id: user._id.toString(),
+  name: user.name,
+  companyName: user.companyName || "",
+  email: user.email,
+  industry: user.industry || "",
+  description: user.description || "",
+  phone: user.phone || "",
+  location: user.location || "",
+  website: user.website || "",
+  supportEmail: user.supportEmail || user.email,
   paymentProvider: paymentConfig.provider,
   paymentCurrency: paymentConfig.currency,
+});
+
+/**
+ * Get the company profile for the authenticated company user.
+ */
+const getCompanyProfile = async (userId) => {
+  if (!userId) {
+    throw createHttpError(401, "Authentication required");
+  }
+
+  const user = await AuthenticationUser.findById(userId);
+  if (!user) {
+    throw createHttpError(404, "Company user not found");
+  }
+
+  return toCompanyProfileResponse(user);
 };
 
-const getCompanyProfile = async () => companyProfile;
+/**
+ * Update the company profile. Only updates allowed fields; always scoped to the
+ * authenticated user — the userId from the JWT cannot be overridden via the body.
+ */
+const updateCompanyProfile = async (userId, updates = {}) => {
+  if (!userId) {
+    throw createHttpError(401, "Authentication required");
+  }
 
-const updateCompanyProfile = async (updates = {}) => {
-  const allowedFields = [
-    "name",
-    "industry",
-    "supportEmail",
-    "website",
-    "description",
-    "paymentProvider",
-    "paymentCurrency",
-  ];
-
-  const updatePayload = allowedFields.reduce((accumulator, key) => {
+  const updatePayload = ALLOWED_COMPANY_FIELDS.reduce((acc, key) => {
     if (updates[key] !== undefined) {
-      accumulator[key] = updates[key];
+      acc[key] = typeof updates[key] === "string" ? updates[key].trim() : updates[key];
     }
-    return accumulator;
+    return acc;
   }, {});
 
-  companyProfile = {
-    ...companyProfile,
-    ...updatePayload,
-  };
+  if (Object.keys(updatePayload).length === 0) {
+    throw createHttpError(400, "At least one updatable field is required");
+  }
 
-  return companyProfile;
+  const updatedUser = await AuthenticationUser.findByIdAndUpdate(
+    userId,
+    { $set: updatePayload },
+    { new: true, runValidators: true }
+  );
+
+  if (!updatedUser) {
+    throw createHttpError(404, "Company user not found");
+  }
+
+  return toCompanyProfileResponse(updatedUser);
 };
 
 module.exports = {

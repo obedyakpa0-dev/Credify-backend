@@ -17,12 +17,12 @@ const environment = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   bcryptSaltRounds: toNumber(process.env.BCRYPT_SALT_ROUNDS, 12),
   corsOrigin: process.env.CORS_ORIGIN || "*",
-  smtpHost: process.env.SMTP_HOST || "",
+  smtpHost: process.env.SMTP_HOST || "smtp.gmail.com",
   smtpPort: toNumber(process.env.SMTP_PORT, 587),
   smtpSecure: process.env.SMTP_SECURE === "true",
   smtpUser: process.env.SMTP_USER || "",
   smtpPass: process.env.SMTP_PASS || "",
-  emailFrom: process.env.EMAIL_FROM || "no-reply@credify.local",
+  emailFrom: process.env.EMAIL_FROM || "Credify Support <no-reply@credify.com>",
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
 };
 

@@ -70,10 +70,23 @@ const updateProject = async (req, res) => {
   }
 };
 
+const deleteProject = async (req, res) => {
+  try {
+    await projectsService.deleteProject(req.params.projectId, req.user);
+    return sendSuccess(res, {
+      message: "Project deleted successfully",
+      data: null,
+    });
+  } catch (error) {
+    return sendError(res, error);
+  }
+};
+
 module.exports = {
   createProject,
   listProjects,
   listMyProjects,
   getProjectById,
   updateProject,
+  deleteProject,
 };

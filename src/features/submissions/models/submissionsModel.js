@@ -40,6 +40,26 @@ const submissionsSchema = new mongoose.Schema(
       maxlength: 2000,
       default: "",
     },
+    githubRepoUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    zipFileUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    zipFileName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    submissionType: {
+      type: String,
+      enum: ["github", "zip", "both", "other"],
+      default: "github",
+    },
   },
   {
     timestamps: true,

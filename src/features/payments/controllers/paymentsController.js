@@ -98,10 +98,11 @@ const paymentCallback = async (req, res) => {
     };
 
     const payment = await paymentsService.processPaymentCallback(callbackPayload);
-    return sendSuccess(res, {
-      message: "Payment callback processed successfully",
-      data: { payment },
-    });
+    const environment = require("../../../../config/environment");
+    const frontendUrl = environment.frontendUrl || "http://localhost:5173";
+    return res.redirect(
+      `${frontendUrl}/student-dashboard/certificates?status=success&reference=${payment.reference}`
+    );
   } catch (error) {
     return sendError(res, error);
   }

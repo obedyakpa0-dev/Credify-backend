@@ -8,6 +8,11 @@ const ratingsSchema = new mongoose.Schema(
       ref: "Project",
       required: true,
     },
+    submissionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Submission",
+      required: true,
+    },
     raterId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "AuthenticationUser",
@@ -39,7 +44,7 @@ const ratingsSchema = new mongoose.Schema(
   }
 );
 
-ratingsSchema.index({ projectId: 1, raterId: 1 }, { unique: true });
+ratingsSchema.index({ submissionId: 1, raterId: 1 }, { unique: true });
 
 const Rating = mongoose.models.Rating || mongoose.model("Rating", ratingsSchema);
 

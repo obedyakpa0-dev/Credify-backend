@@ -27,7 +27,14 @@ const getProfileByUserId = async (req, res) => {
 
 const upsertProfile = async (req, res) => {
   try {
-    const profile = await profileService.upsertProfile(req.body);
+    if (!req.user?.id) {
+      return sendError(res, { statusCode: 401, message: "Authentication required" });
+    }
+    // Always bind profile to the authenticated user — ignore any userId in body (IDOR prevention)
+    const profile = await profileService.upsertProfile({
+      ...req.body,
+      userId: req.user.id,
+    });
     return sendSuccess(res, {
       statusCode: 201,
       message: "Profile saved successfully",

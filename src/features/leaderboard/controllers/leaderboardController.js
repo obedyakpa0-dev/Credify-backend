@@ -3,7 +3,11 @@ const { sendSuccess, sendError } = require("../../../common/http");
 
 const upsertEntry = async (req, res) => {
   try {
-    const entry = await leaderboardService.upsertEntry(req.body);
+    // Always bind the leaderboard entry to the authenticated user — ignore any userId in body
+    const entry = await leaderboardService.upsertEntry({
+      ...req.body,
+      userId: req.user.id,
+    });
     return sendSuccess(res, {
       statusCode: 201,
       message: "Leaderboard entry saved successfully",

@@ -59,6 +59,17 @@ const upsertRating = async ({ projectId, rating, comment } = {}, currentUser) =>
     throw createHttpError(404, "Project not found");
   }
 
+  // Companies can only rate projects they own
+  if (
+    currentUser.role === "company" &&
+    project.ownerId.toString() !== currentUser.id
+  ) {
+    throw createHttpError(
+      403,
+      "You can only submit ratings for your own projects"
+    );
+  }
+
   const ratingDocument = await Rating.findOneAndUpdate(
     { projectId, raterId: currentUser.id },
     {
