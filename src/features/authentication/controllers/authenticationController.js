@@ -13,11 +13,9 @@ const resolveStatusCode = (error) => {
 };
 
 const handleErrorResponse = (res, error) => {
+  console.error("[Auth Error]", error);
   const statusCode = resolveStatusCode(error);
-  const message =
-    statusCode === 500
-      ? "Something went wrong. Please try again later."
-      : error.message;
+  const message = error.message || "Something went wrong. Please try again later.";
 
   res.status(statusCode).json({
     success: false,
@@ -136,12 +134,57 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const resendVerification = async (req, res) => {
+  try {
+    const result = await authenticationService.resendVerification(
+      req.body,
+      req.user,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    return handleErrorResponse(res, error);
+  }
+};
+
+const verifyOtp = async (req, res) => {
+  try {
+    const result = await authenticationService.verifyOtp(req.body);
+    return res.status(200).json({
+      success: true,
+      message: "Email verified successfully.",
+      data: result,
+    });
+  } catch (error) {
+    return handleErrorResponse(res, error);
+  }
+};
+
+const resendOtp = async (req, res) => {
+  try {
+    const result = await authenticationService.resendOtp(req.body);
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    return handleErrorResponse(res, error);
+  }
+};
+
 module.exports = {
   register,
   login,
   requestPasswordReset,
   resetPassword,
   verifyEmail,
+  resendVerification,
+  verifyOtp,
+  resendOtp,
   getMe,
   updateProfile,
 };
+

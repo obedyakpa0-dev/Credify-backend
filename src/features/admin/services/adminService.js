@@ -201,6 +201,7 @@ const toAdminProjectResponse = (p) => ({
   approvalStatus: p.approvalStatus,
   techStack: p.techStack,
   tags: p.tags,
+  deadline: p.deadline || null,
   createdAt: p.createdAt,
   updatedAt: p.updatedAt,
 });

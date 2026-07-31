@@ -73,6 +73,10 @@ const projectsSchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
+    deadline: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

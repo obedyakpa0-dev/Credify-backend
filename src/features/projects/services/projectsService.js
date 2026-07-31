@@ -34,6 +34,7 @@ const toProjectResponse = (projectDocument) => ({
   tags: projectDocument.tags,
   repositoryUrl: projectDocument.repositoryUrl,
   liveUrl: projectDocument.liveUrl,
+  deadline: projectDocument.deadline || null,
   createdAt: projectDocument.createdAt,
   updatedAt: projectDocument.updatedAt,
 });
@@ -61,6 +62,7 @@ const createProject = async (payload = {}, currentUser) => {
     tags: normalizeStringArray(payload.tags),
     repositoryUrl: payload.repositoryUrl,
     liveUrl: payload.liveUrl,
+    deadline: payload.deadline ? new Date(payload.deadline) : null,
   });
 
   return toProjectResponse(createdProject);
@@ -158,6 +160,7 @@ const updateProject = async (projectId, updates = {}, currentUser) => {
     "status",
     "repositoryUrl",
     "liveUrl",
+    "deadline",
   ];
 
   const updatePayload = allowedFields.reduce((accumulator, key) => {

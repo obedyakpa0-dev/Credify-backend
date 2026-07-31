@@ -50,6 +50,8 @@ const createAccessToken = (userDocument) =>
 
 const createRandomToken = () => crypto.randomBytes(32).toString("hex");
 
+const createOtp = () => String(Math.floor(100000 + Math.random() * 900000));
+
 const createEmailTransport = () => {
   return nodemailer.createTransport({
     host: environment.smtpHost,
@@ -64,18 +66,24 @@ const createEmailTransport = () => {
 
 const sendEmail = async ({ to, subject, html, text }) => {
   if (!environment.smtpHost || !environment.smtpUser || !environment.smtpPass) {
-    console.warn("SMTP is not fully configured; skipping email delivery.");
+    console.warn("[SMTP Warning] SMTP is not fully configured; skipping email delivery.");
     return;
   }
 
-  const transporter = createEmailTransport();
-  await transporter.sendMail({
-    from: environment.emailFrom,
-    to,
-    subject,
-    text,
-    html,
-  });
+  try {
+    const transporter = createEmailTransport();
+    const info = await transporter.sendMail({
+      from: environment.emailFrom,
+      to,
+      subject,
+      text,
+      html,
+    });
+    console.log(`[SMTP Success] Email sent to ${to}. MessageId: ${info.messageId}`);
+  } catch (error) {
+    console.error("[SMTP Error] Failed to deliver email:", error.message || error);
+    // Graceful fallback: log the error so registration/verification request does not throw 500
+  }
 };
 
 const getVerificationUrl = (token) =>
@@ -84,19 +92,91 @@ const getVerificationUrl = (token) =>
 const getResetUrl = (token) =>
   `${environment.frontendUrl.replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(token)}`;
 
+const sendOtpEmail = async (user, otp) => {
+  const subject = "Your Credify verification code";
+  const text = `Hi ${user.name},\n\nYour Credify verification code is: ${otp}\n\nThis code expires in 10 minutes. Do not share it with anyone.\n\nIf you did not create a Credify account, ignore this email.`;
+  const html = `
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background-color: #ffffff; border: 1px solid #e1ecf8; border-radius: 12px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h2 style="color: #0f3460; margin: 0; font-size: 24px; font-weight: 700;">Credify</h2>
+        <p style="color: #7a9ec0; font-size: 14px; margin-top: 4px;">Email Verification</p>
+      </div>
+      <div style="padding: 24px; background-color: #f8faff; border-radius: 8px; border: 1px solid #e1ecf8;">
+        <h3 style="color: #0d1f35; margin-top: 0;">Hi ${user.name},</h3>
+        <p style="color: #4a6080; font-size: 15px; line-height: 1.6;">Enter the code below to verify your Credify account. It expires in <strong>10 minutes</strong>.</p>
+        <div style="text-align: center; margin: 28px 0;">
+          <div style="display: inline-block; background: #0f3460; color: #ffffff; font-size: 36px; font-weight: 800; letter-spacing: 12px; padding: 16px 32px; border-radius: 12px; font-family: monospace;">${otp}</div>
+        </div>
+        <p style="color: #7a9ec0; font-size: 12px; margin-bottom: 0; text-align: center;">Do not share this code with anyone. Credify will never ask for your code.<br/>If you did not sign up, safely ignore this email.</p>
+      </div>
+    </div>
+  `;
+  await sendEmail({ to: user.email, subject, text, html });
+};
+
 const sendVerificationEmail = async (user, token) => {
   const verifyUrl = getVerificationUrl(token);
-  const subject = "Verify your Credify email";
-  const text = `Hi ${user.name},\n\nPlease verify your Credify email by clicking the link below:\n${verifyUrl}\n\nIf you did not create this account, ignore this message.`;
-  const html = `<p>Hi ${user.name},</p><p>Please verify your Credify email by clicking the link below:</p><p><a href="${verifyUrl}">Verify my email</a></p><p>If you did not create this account, ignore this message.</p>`;
+  const subject = "Verify your Credify Email Address";
+  const text = `Hi ${user.name},\n\nPlease verify your Credify account email by visiting the following URL:\n${verifyUrl}\n\nThis link will expire in 24 hours.\n\nIf you did not create a Credify account, please ignore this email.`;
+  const html = `
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background-color: #ffffff; border: 1px solid #e1ecf8; border-radius: 12px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h2 style="color: #0f3460; margin: 0; font-size: 24px; font-weight: 700;">Credify</h2>
+        <p style="color: #7a9ec0; font-size: 14px; margin-top: 4px;">Verified Skills & Credentials</p>
+      </div>
+      <div style="padding: 24px; background-color: #f8faff; border-radius: 8px; border: 1px solid #e1ecf8;">
+        <h3 style="color: #0d1f35; margin-top: 0;">Welcome to Credify, ${user.name}!</h3>
+        <p style="color: #4a6080; font-size: 15px; line-height: 1.6;">
+          Please confirm your email address to fully activate your account and start building your verified skills portfolio.
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verifyUrl}" target="_blank" style="background-color: #1565c0; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
+            Verify My Email Address
+          </a>
+        </div>
+        <p style="color: #7a9ec0; font-size: 13px; line-height: 1.5;">
+          Or copy and paste this link into your browser:<br />
+          <a href="${verifyUrl}" style="color: #1565c0; word-break: break-all;">${verifyUrl}</a>
+        </p>
+        <p style="color: #7a9ec0; font-size: 12px; margin-bottom: 0;">
+          This link is valid for 24 hours. If you did not sign up for a Credify account, you can safely ignore this message.
+        </p>
+      </div>
+    </div>
+  `;
   await sendEmail({ to: user.email, subject, text, html });
 };
 
 const sendPasswordResetEmail = async (user, token) => {
   const resetUrl = getResetUrl(token);
-  const subject = "Reset your Credify password";
-  const text = `Hi ${user.name},\n\nUse the link below to reset your Credify password:\n${resetUrl}\n\nIf you did not request a password reset, ignore this message.`;
-  const html = `<p>Hi ${user.name},</p><p>Use the link below to reset your Credify password:</p><p><a href="${resetUrl}">Reset my password</a></p><p>If you did not request a password reset, ignore this message.</p>`;
+  const subject = "Reset your Credify Password";
+  const text = `Hi ${user.name},\n\nClick the link below to reset your Credify password:\n${resetUrl}\n\nThis link expires in 1 hour. If you did not request a password reset, ignore this email.`;
+  const html = `
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background-color: #ffffff; border: 1px solid #e1ecf8; border-radius: 12px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h2 style="color: #0f3460; margin: 0; font-size: 24px; font-weight: 700;">Credify</h2>
+        <p style="color: #7a9ec0; font-size: 14px; margin-top: 4px;">Password Reset Request</p>
+      </div>
+      <div style="padding: 24px; background-color: #f8faff; border-radius: 8px; border: 1px solid #e1ecf8;">
+        <h3 style="color: #0d1f35; margin-top: 0;">Hi ${user.name},</h3>
+        <p style="color: #4a6080; font-size: 15px; line-height: 1.6;">
+          We received a request to reset your password for your Credify account. Click the button below to choose a new password:
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" target="_blank" style="background-color: #1565c0; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
+            Reset Password
+          </a>
+        </div>
+        <p style="color: #7a9ec0; font-size: 13px; line-height: 1.5;">
+          Or copy and paste this link into your browser:<br />
+          <a href="${resetUrl}" style="color: #1565c0; word-break: break-all;">${resetUrl}</a>
+        </p>
+        <p style="color: #7a9ec0; font-size: 12px; margin-bottom: 0;">
+          This reset link is valid for 1 hour. If you did not request a password reset, please ignore this email or contact support.
+        </p>
+      </div>
+    </div>
+  `;
   await sendEmail({ to: user.email, subject, text, html });
 };
 
@@ -175,8 +255,9 @@ const registerUser = async ({
     password,
     environment.bcryptSaltRounds,
   );
-  const verificationToken = createRandomToken();
-  const verificationTokenExpiry = new Date(Date.now() + 1000 * 60 * 60 * 24);
+
+  const otp = createOtp();
+  const otpExpiry = new Date(Date.now() + 1000 * 60 * 10); // 10 minutes
 
   const createdUser = await AuthenticationUser.create({
     name: name.trim(),
@@ -186,18 +267,17 @@ const registerUser = async ({
     programme: programme ? programme.trim() : "",
     companyName: companyName ? companyName.trim() : "",
     role,
-    verificationToken,
-    verificationTokenExpiry,
+    otpCode: otp,
+    otpExpiry,
   });
 
-  await sendVerificationEmail(createdUser, verificationToken);
+  await sendOtpEmail(createdUser, otp);
 
-  const accessToken = createAccessToken(createdUser);
-
+  // Do NOT return an access token yet — user must verify OTP first
   return {
-    accessToken,
-    user: sanitizeUser(createdUser),
-    redirectPath: ROLE_REDIRECT_MAP[createdUser.role] || "/dashboard",
+    email: normalizedEmail,
+    requiresOtp: true,
+    message: "Account created. Please check your email for your 6-digit verification code.",
   };
 };
 
@@ -324,7 +404,7 @@ const verifyEmail = async ({ token } = {}) => {
   const user = await AuthenticationUser.findOne({
     verificationToken: token,
     verificationTokenExpiry: { $gt: new Date() },
-  });
+  }).select("+verificationToken +verificationTokenExpiry");
 
   if (!user) {
     throw createHttpError(400, "Invalid or expired verification token");
@@ -401,6 +481,114 @@ const updateUserProfile = async (userId, updates = {}) => {
   return sanitizeUser(updatedUser);
 };
 
+const resendVerification = async ({ email } = {}, currentUser) => {
+  const targetEmail = email ? email.trim().toLowerCase() : currentUser?.email;
+
+  if (!targetEmail) {
+    throw createHttpError(400, "Email address is required");
+  }
+
+  const user = await AuthenticationUser.findOne({ email: targetEmail }).select("+verificationToken +verificationTokenExpiry");
+  if (!user) {
+    // Avoid user enumeration
+    return { message: "If an unverified account exists with that email, a verification link has been sent." };
+  }
+
+  if (user.emailVerified) {
+    return { message: "This email address is already verified." };
+  }
+
+  const verificationToken = createRandomToken();
+  const verificationTokenExpiry = new Date(Date.now() + 1000 * 60 * 60 * 24);
+
+  user.verificationToken = verificationToken;
+  user.verificationTokenExpiry = verificationTokenExpiry;
+  await user.save();
+
+  await sendVerificationEmail(user, verificationToken);
+
+  return { message: "Verification email sent successfully." };
+};
+
+const verifyOtp = async ({ email, otp } = {}) => {
+  if (!email || !otp) {
+    throw createHttpError(400, "email and otp are required");
+  }
+
+  const user = await AuthenticationUser.findOne({
+    email: email.trim().toLowerCase(),
+  }).select("+otpCode +otpExpiry");
+
+  if (!user) {
+    throw createHttpError(400, "No account found with that email address");
+  }
+
+  if (user.emailVerified) {
+    // Already verified — just issue a token so they can proceed
+    const accessToken = createAccessToken(user);
+    return {
+      accessToken,
+      user: sanitizeUser(user),
+      redirectPath: ROLE_REDIRECT_MAP[user.role] || "/dashboard",
+    };
+  }
+
+  if (!user.otpCode || !user.otpExpiry) {
+    throw createHttpError(400, "No verification code found. Please request a new one.");
+  }
+
+  if (new Date() > new Date(user.otpExpiry)) {
+    throw createHttpError(400, "This code has expired. Please request a new verification code.");
+  }
+
+  if (String(user.otpCode).trim() !== String(otp).trim()) {
+    throw createHttpError(400, "Incorrect code. Please try again.");
+  }
+
+  user.emailVerified = true;
+  user.otpCode = "";
+  user.otpExpiry = null;
+  await user.save();
+
+  const accessToken = createAccessToken(user);
+
+  return {
+    accessToken,
+    user: sanitizeUser(user),
+    redirectPath: ROLE_REDIRECT_MAP[user.role] || "/dashboard",
+  };
+};
+
+const resendOtp = async ({ email } = {}) => {
+  if (!email) {
+    throw createHttpError(400, "email is required");
+  }
+
+  const user = await AuthenticationUser.findOne({
+    email: email.trim().toLowerCase(),
+  }).select("+otpCode +otpExpiry");
+
+  if (!user) {
+    // Avoid user enumeration
+    return { message: "If that email has a pending account, a new code has been sent." };
+  }
+
+  if (user.emailVerified) {
+    return { message: "This account is already verified. Please sign in." };
+  }
+
+  const otp = createOtp();
+  const otpExpiry = new Date(Date.now() + 1000 * 60 * 10);
+
+  user.otpCode = otp;
+  user.otpExpiry = otpExpiry;
+  await user.save();
+
+  await sendOtpEmail(user, otp);
+
+  return { message: "A new verification code has been sent to your email." };
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -408,5 +596,8 @@ module.exports = {
   requestPasswordReset,
   resetPassword,
   verifyEmail,
+  verifyOtp,
+  resendOtp,
+  resendVerification,
   updateUserProfile,
 };

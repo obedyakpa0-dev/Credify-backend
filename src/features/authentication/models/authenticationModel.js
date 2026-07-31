@@ -73,22 +73,37 @@ const authenticationSchema = new mongoose.Schema(
       default: false,
     },
 
-    emailVerificationCode: {
+    otpCode: {
       type: String,
+      default: "",
       select: false,
     },
 
-    emailVerificationExpires: {
+    otpExpiry: {
       type: Date,
       select: false,
     },
+
+    verificationToken: {
+      type: String,
+      default: "",
+      select: false,
+    },
+
+    verificationTokenExpiry: {
+      type: Date,
+      select: false,
+    },
+
     resetToken: {
       type: String,
       default: "",
+      select: false,
     },
 
     resetTokenExpiry: {
       type: Date,
+      select: false,
     },
 
     role: {

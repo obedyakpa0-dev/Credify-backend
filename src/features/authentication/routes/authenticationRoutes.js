@@ -9,7 +9,11 @@ router.post("/login", authenticationController.login);
 router.post("/forgot-password", authenticationController.requestPasswordReset);
 router.post("/reset-password", authenticationController.resetPassword);
 router.get("/verify-email", authenticationController.verifyEmail);
+router.post("/verify-otp", authenticationController.verifyOtp);
+router.post("/resend-otp", authenticationController.resendOtp);
+router.post("/resend-verification", authenticationController.resendVerification);
 router.get("/me", requireAuth, authenticationController.getMe);
 router.put("/profile", requireAuth, authenticationController.updateProfile);
 
 module.exports = router;
+

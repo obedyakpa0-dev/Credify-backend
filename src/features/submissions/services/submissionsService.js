@@ -107,6 +107,27 @@ const createSubmission = async (
     throw createHttpError(400, "Submissions are only accepted for approved projects");
   }
 
+  // Require at least one of: githubRepoUrl or zipFileUrl
+  const hasGithub = typeof githubRepoUrl === "string" && githubRepoUrl.trim().length > 0;
+  const hasZip = typeof zipFileUrl === "string" && zipFileUrl.trim().length > 0;
+  if (!hasGithub && !hasZip) {
+    throw createHttpError(
+      400,
+      "You must provide either a GitHub repository URL or a folder/archive link to submit your work"
+    );
+  }
+
+  // Block submission if the project deadline has already passed
+  if (project.deadline && new Date() > new Date(project.deadline)) {
+    const formatted = new Date(project.deadline).toLocaleDateString("en-GB", {
+      day: "numeric", month: "long", year: "numeric",
+    });
+    throw createHttpError(
+      400,
+      `The submission deadline for this project was ${formatted}. No further submissions are accepted.`
+    );
+  }
+
   // Prevent duplicate submissions (one per user per project)
   const existingSubmission = await Submission.findOne({
     projectId,
@@ -294,6 +315,18 @@ const updateSubmission = async (
   // Only the owner can update their own submission content
   if (submission.userId.toString() !== currentUser.id) {
     throw createHttpError(403, "You are not allowed to update this submission");
+  }
+
+  // Prevent edits if the project deadline has passed
+  const projectDoc = await Project.findById(submission.projectId);
+  if (projectDoc?.deadline && new Date() > new Date(projectDoc.deadline)) {
+    const formatted = new Date(projectDoc.deadline).toLocaleDateString("en-GB", {
+      day: "numeric", month: "long", year: "numeric",
+    });
+    throw createHttpError(
+      400,
+      `The submission deadline for this project was ${formatted}. You can no longer update your work.`
+    );
   }
 
   // Prevent edits once it's been reviewed
