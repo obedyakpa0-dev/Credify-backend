@@ -3,7 +3,10 @@ const { sendSuccess, sendError } = require("../../../common/http");
 
 const createSubmission = async (req, res) => {
   try {
-    const submission = await submissionsService.createSubmission(req.body, req.user);
+    const submission = await submissionsService.createSubmission(
+      req.body,
+      req.user,
+    );
     return sendSuccess(res, {
       statusCode: 201,
       message: "Submission created successfully",
@@ -46,7 +49,7 @@ const getSubmissionById = async (req, res) => {
   try {
     const submission = await submissionsService.getSubmissionById(
       req.params.submissionId,
-      req.user
+      req.user,
     );
     return sendSuccess(res, {
       message: "Submission retrieved successfully",
@@ -62,7 +65,7 @@ const updateSubmissionStatus = async (req, res) => {
     const submission = await submissionsService.updateSubmissionStatus(
       req.params.submissionId,
       req.body,
-      req.user
+      req.user,
     );
     return sendSuccess(res, {
       message: "Submission status updated successfully",
@@ -78,11 +81,26 @@ const rateSubmission = async (req, res) => {
     const result = await submissionsService.rateSubmission(
       req.params.submissionId,
       req.user,
-      req.body
+      req.body,
     );
     return sendSuccess(res, {
       message: "Submission rated successfully",
       data: result,
+    });
+  } catch (error) {
+    return sendError(res, error);
+  }
+};
+
+const deleteSubmission = async (req, res) => {
+  try {
+    await submissionsService.deleteSubmission(
+      req.params.submissionId,
+      req.user,
+    );
+    return sendSuccess(res, {
+      message: "Project removed successfully",
+      data: null,
     });
   } catch (error) {
     return sendError(res, error);
@@ -96,4 +114,5 @@ module.exports = {
   getSubmissionById,
   updateSubmissionStatus,
   rateSubmission,
+  deleteSubmission,
 };

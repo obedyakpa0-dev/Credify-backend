@@ -29,17 +29,6 @@ const submissionsSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-    status: {
-      type: String,
-      enum: ["pending", "reviewing", "approved", "rejected"],
-      default: "pending",
-    },
-    reviewerNotes: {
-      type: String,
-      trim: true,
-      maxlength: 2000,
-      default: "",
-    },
     githubRepoUrl: {
       type: String,
       trim: true,
@@ -60,11 +49,22 @@ const submissionsSchema = new mongoose.Schema(
       enum: ["github", "zip", "both", "other"],
       default: "github",
     },
+    status: {
+      type: String,
+      enum: ["ongoing", "pending", "reviewing", "approved", "rejected"],
+      default: "ongoing",
+    },
+    reviewerNotes: {
+      type: String,
+      trim: true,
+      maxlength: 2000,
+      default: "",
+    },
   },
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 const Submission =
