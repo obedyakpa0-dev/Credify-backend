@@ -16,8 +16,11 @@ const ratingsRoutes = require("./features/ratings/routes/ratingsRoutes");
 const submissionsRoutes = require("./features/submissions/routes/submissionsRoutes");
 const leaderboardRoutes = require("./features/leaderboard/routes/leaderboardRoutes");
 const contactRoutes = require("./features/contact/routes/contactRoutes");
+const cookieParser = require('cookie-parser');
 
 const app = express();
+
+app.use(cookieParser());
 
 // ── Security Headers ─────────────────────────────────────────────────────────
 app.use(
@@ -32,7 +35,7 @@ const allowedOrigins = environment.corsOrigin === "*"
   ? true
   : environment.corsOrigin
       .split(",")
-      .map((origin) => origin.trim())
+      .map((origin) => origin.trim().replace(/\/$/, ""))
       .filter(Boolean);
 
 app.use(
@@ -41,14 +44,24 @@ app.use(
       // Allow requests with no origin (e.g. mobile apps, curl, Postman)
       if (!origin) return callback(null, true);
       if (allowedOrigins === true) return callback(null, true);
-      if (Array.isArray(allowedOrigins) && (allowedOrigins.includes(origin) || allowedOrigins.includes("*"))) {
+
+      const normalizedOrigin = origin.replace(/\/$/, "");
+
+      if (
+        Array.isArray(allowedOrigins) &&
+        (allowedOrigins.includes(normalizedOrigin) || allowedOrigins.includes("*"))
+      ) {
         return callback(null, true);
       }
+
       // Allow local development origins automatically (localhost & 127.0.0.1 on any port)
-      if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalizedOrigin)) {
         return callback(null, true);
       }
-      return callback(null, true);
+
+      const corsError = new Error("CORS policy: Origin not allowed");
+      corsError.statusCode = 403;
+      return callback(corsError);
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
@@ -56,6 +69,8 @@ app.use(
     optionsSuccessStatus: 200,
   })
 );
+
+app.set('trust proxy', 1)
 
 // ── Paystack webhook needs raw body BEFORE express.json() ────────────────────
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }));

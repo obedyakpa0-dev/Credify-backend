@@ -68,6 +68,41 @@ const authenticationSchema = new mongoose.Schema(
       default: "",
     },
 
+    headline: {
+      type: String,
+      default: "",
+    },
+
+    skills: {
+      type: [String],
+      default: [],
+    },
+
+    avatarUrl: {
+      type: String,
+      default: "",
+    },
+
+    githubUrl: {
+      type: String,
+      default: "",
+    },
+
+    linkedinUrl: {
+      type: String,
+      default: "",
+    },
+
+    portfolioUrl: {
+      type: String,
+      default: "",
+    },
+
+    graduationYear: {
+      type: String,
+      default: "",
+    },
+
     emailVerified: {
       type: Boolean,
       default: false,

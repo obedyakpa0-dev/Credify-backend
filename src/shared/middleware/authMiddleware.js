@@ -7,9 +7,12 @@ const { createHttpError } = require("../../common/http");
  */
 const requireAuth = async (req, _res, next) => {
   try {
-    const user = await authenticationService.getAuthenticatedUser(
-      req.headers.authorization
-    );
+    // Accept token from httpOnly cookie or Authorization header
+    const token =
+      req.cookies?.token ||
+      req.headers.authorization?.replace(/^Bearer\s+/i, "");
+
+    const user = await authenticationService.getAuthenticatedUser(token);
     req.user = user;
     return next();
   } catch (error) {

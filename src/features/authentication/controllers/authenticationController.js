@@ -1,4 +1,13 @@
 const authenticationService = require("../services/authenticationService");
+const environment = require("../../../../config/environment");
+
+const getCookieOptions = () => ({
+  httpOnly: true, // Prevents client-side JS/XSS scripts from reading the token cookie
+  secure: environment.nodeEnv === "production",
+  sameSite: environment.nodeEnv === "production" ? "none" : "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: "/",
+});
 
 const resolveStatusCode = (error) => {
   if (error.statusCode) {
@@ -41,10 +50,15 @@ const login = async (req, res) => {
   try {
     const result = await authenticationService.loginUser(req.body);
 
+    res.cookie("token", result.accessToken, getCookieOptions());
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
-      data: result,
+      data: {
+        user: result.user,
+        redirectPath: result.redirectPath,
+      }
     });
   } catch (error) {
     return handleErrorResponse(res, error);
@@ -92,15 +106,16 @@ const verifyEmail = async (req, res) => {
 
 const getMe = async (req, res) => {
   try {
-    const user = await authenticationService.getAuthenticatedUser(
-      req.headers.authorization,
-    );
+    // requireAuth middleware already verified the token and populated req.user
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: "Not authenticated" });
+    }
 
     return res.status(200).json({
       success: true,
       message: "User retrieved successfully",
       data: {
-        user,
+        user: req.user,
       },
     });
   } catch (error) {
@@ -153,10 +168,16 @@ const resendVerification = async (req, res) => {
 const verifyOtp = async (req, res) => {
   try {
     const result = await authenticationService.verifyOtp(req.body);
+
+    res.cookie("token", result.accessToken, getCookieOptions());
+
     return res.status(200).json({
       success: true,
-      message: "Email verified successfully.",
-      data: result,
+      message: "OTP verified successfully",
+      data: {
+        user: result.user,
+        redirectPath: result.redirectPath,
+      },
     });
   } catch (error) {
     return handleErrorResponse(res, error);
@@ -175,6 +196,38 @@ const resendOtp = async (req, res) => {
   }
 };
 
+const logout = (req, res) => {
+  res.clearCookie("token", getCookieOptions());
+
+  return res.status(200).json({
+    success: true,
+    message: "Logged out successfully",
+  });
+};
+
+const changePassword = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    const result = await authenticationService.changePassword(
+      req.user.id,
+      req.body,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    return handleErrorResponse(res, error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -184,7 +237,9 @@ module.exports = {
   resendVerification,
   verifyOtp,
   resendOtp,
+  logout,
   getMe,
   updateProfile,
+  changePassword,
 };
 

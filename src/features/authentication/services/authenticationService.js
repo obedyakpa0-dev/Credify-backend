@@ -31,6 +31,13 @@ const sanitizeUser = (userDocument) => ({
   location: userDocument.location || "",
   industry: userDocument.industry || "",
   description: userDocument.description || "",
+  headline: userDocument.headline || "",
+  skills: Array.isArray(userDocument.skills) ? userDocument.skills : [],
+  avatarUrl: userDocument.avatarUrl || "",
+  githubUrl: userDocument.githubUrl || "",
+  linkedinUrl: userDocument.linkedinUrl || "",
+  portfolioUrl: userDocument.portfolioUrl || "",
+  graduationYear: userDocument.graduationYear || "",
   emailVerified: userDocument.emailVerified || false,
   role: userDocument.role,
   createdAt: userDocument.createdAt,
@@ -321,36 +328,33 @@ const loginUser = async ({ email, password } = {}) => {
   };
 };
 
-const getAuthenticatedUser = async (authorizationHeader) => {
-  const token = extractBearerToken(authorizationHeader);
+const getAuthenticatedUser = async (token) => {
+  if (!token || token === "undefined") {
+    throw createHttpError(401, "Access token is required");
+  }
 
   let payload;
+
   try {
     payload = jwt.verify(token, environment.jwtSecret, {
       algorithms: ["HS256"],
     });
-  } catch (err) {
-    if (err.name === "TokenExpiredError") {
-      throw createHttpError(401, "Your session has expired. Please sign in again.");
+
+  } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      throw createHttpError(401, "Session expired. Please sign in again.");
     }
     throw createHttpError(401, "Invalid token. Please sign in again.");
   }
 
-  if (!payload.sub || !payload.email || !payload.role) {
-    throw createHttpError(401, "Malformed token payload");
+  if (!payload.sub|| !payload.email || !payload.role) {
+    throw createHttpError(401, "Invalid token payload. Please sign in again.");
   }
 
   const user = await AuthenticationUser.findById(payload.sub);
-
   if (!user) {
-    throw createHttpError(401, "Account not found");
+    throw createHttpError(401, "User not found. Please sign in again.");
   }
-
-  // Block all API access for suspended users even if JWT is still valid
-  if (user.isSuspended) {
-    throw createHttpError(403, "Your account has been suspended. Please contact support.");
-  }
-
   return sanitizeUser(user);
 };
 
@@ -436,13 +440,33 @@ const updateUserProfile = async (userId, updates = {}) => {
     "location",
     "industry",
     "description",
+    "headline",
+    "skills",
+    "avatarUrl",
+    "githubUrl",
+    "linkedinUrl",
+    "portfolioUrl",
+    "graduationYear",
   ];
 
   const updatePayload = {};
 
   allowedFields.forEach((field) => {
     if (updates[field] !== undefined) {
-      if (typeof updates[field] === "string") {
+      if (field === "skills") {
+        if (Array.isArray(updates[field])) {
+          updatePayload[field] = updates[field]
+            .map((s) => (typeof s === "string" ? s.trim() : String(s).trim()))
+            .filter(Boolean);
+        } else if (typeof updates[field] === "string") {
+          updatePayload[field] = updates[field]
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        } else {
+          updatePayload[field] = [];
+        }
+      } else if (typeof updates[field] === "string") {
         updatePayload[field] = updates[field].trim();
       } else {
         updatePayload[field] = updates[field];
@@ -589,6 +613,34 @@ const resendOtp = async ({ email } = {}) => {
   return { message: "A new verification code has been sent to your email." };
 };
 
+const changePassword = async (userId, { currentPassword, newPassword } = {}) => {
+  if (!userId) {
+    throw createHttpError(400, "userId is required");
+  }
+  if (!currentPassword || !newPassword) {
+    throw createHttpError(400, "Current password and new password are required");
+  }
+
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    throw createHttpError(400, `New password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+  }
+
+  const user = await AuthenticationUser.findById(userId).select("+password");
+  if (!user) {
+    throw createHttpError(404, "User not found");
+  }
+
+  const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+  if (!isCurrentPasswordValid) {
+    throw createHttpError(400, "Current password is incorrect");
+  }
+
+  user.password = await bcrypt.hash(newPassword, environment.bcryptSaltRounds);
+  await user.save();
+
+  return { message: "Password updated successfully" };
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -600,4 +652,5 @@ module.exports = {
   resendOtp,
   resendVerification,
   updateUserProfile,
+  changePassword,
 };
