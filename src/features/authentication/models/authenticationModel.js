@@ -119,6 +119,12 @@ const authenticationSchema = new mongoose.Schema(
       select: false,
     },
 
+    failedOtpAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+
     verificationToken: {
       type: String,
       default: "",

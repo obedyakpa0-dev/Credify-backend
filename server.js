@@ -1,6 +1,10 @@
 const app = require("./src/app");
 const environment = require("./config/environment");
 const { connectDb } = require("./config/db");
+const dns = require('node:dns')
+
+
+dns.setDefaultResultOrder('ipv4first')
 
 const startServer = async () => {
   try {

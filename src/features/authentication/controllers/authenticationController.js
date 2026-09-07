@@ -1,20 +1,28 @@
 const authenticationService = require("../services/authenticationService");
 const environment = require("../../../../config/environment");
 
-const getCookieOptions = () => ({
-  httpOnly: true, // Prevents client-side JS/XSS scripts from reading the token cookie
-  secure: environment.nodeEnv === "production",
-  sameSite: environment.nodeEnv === "production" ? "none" : "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-  path: "/",
-});
+const getCookieOptions = (req) => {
+  const isProduction = environment.nodeEnv === "production";
+  const useSecureCookie = req?.secure === true || isProduction;
+  return {
+    httpOnly: true,
+    secure: useSecureCookie,
+    sameSite: isProduction ? "strict" : "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/",
+  };
+};
 
 const resolveStatusCode = (error) => {
   if (error.statusCode) {
     return error.statusCode;
   }
 
-  if (error.name === "ValidationError" || error.name === "Validation Error" || error.name === "CastError") {
+  if (
+    error.name === "ValidationError" ||
+    error.name === "Validation Error" ||
+    error.name === "CastError"
+  ) {
     return 400;
   }
 
@@ -24,7 +32,8 @@ const resolveStatusCode = (error) => {
 const handleErrorResponse = (res, error) => {
   console.error("[Auth Error]", error);
   const statusCode = resolveStatusCode(error);
-  const message = error.message || "Something went wrong. Please try again later.";
+  const message =
+    error.message || "Something went wrong. Please try again later.";
 
   res.status(statusCode).json({
     success: false,
@@ -50,7 +59,7 @@ const login = async (req, res) => {
   try {
     const result = await authenticationService.loginUser(req.body);
 
-    res.cookie("token", result.accessToken, getCookieOptions());
+    res.cookie("token", result.accessToken, getCookieOptions(req));
 
     return res.status(200).json({
       success: true,
@@ -58,7 +67,7 @@ const login = async (req, res) => {
       data: {
         user: result.user,
         redirectPath: result.redirectPath,
-      }
+      },
     });
   } catch (error) {
     return handleErrorResponse(res, error);
@@ -108,7 +117,9 @@ const getMe = async (req, res) => {
   try {
     // requireAuth middleware already verified the token and populated req.user
     if (!req.user) {
-      return res.status(401).json({ success: false, message: "Not authenticated" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Not authenticated" });
     }
 
     return res.status(200).json({
@@ -169,7 +180,7 @@ const verifyOtp = async (req, res) => {
   try {
     const result = await authenticationService.verifyOtp(req.body);
 
-    res.cookie("token", result.accessToken, getCookieOptions());
+    res.cookie("token", result.accessToken, getCookieOptions(req));
 
     return res.status(200).json({
       success: true,
@@ -197,7 +208,7 @@ const resendOtp = async (req, res) => {
 };
 
 const logout = (req, res) => {
-  res.clearCookie("token", getCookieOptions());
+  res.clearCookie("token", getCookieOptions(req));
 
   return res.status(200).json({
     success: true,
@@ -242,4 +253,3 @@ module.exports = {
   updateProfile,
   changePassword,
 };
-

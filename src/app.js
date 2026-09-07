@@ -16,7 +16,7 @@ const ratingsRoutes = require("./features/ratings/routes/ratingsRoutes");
 const submissionsRoutes = require("./features/submissions/routes/submissionsRoutes");
 const leaderboardRoutes = require("./features/leaderboard/routes/leaderboardRoutes");
 const contactRoutes = require("./features/contact/routes/contactRoutes");
-const cookieParser = require('cookie-parser');
+const cookieParser = require("cookie-parser");
 
 const app = express();
 
@@ -27,16 +27,17 @@ app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
     contentSecurityPolicy: false, // managed by the frontend framework
-  })
+  }),
 );
 
 // ── CORS Configuration ───────────────────────────────────────────────────────
-const allowedOrigins = environment.corsOrigin === "*"
-  ? true
-  : environment.corsOrigin
-      .split(",")
-      .map((origin) => origin.trim().replace(/\/$/, ""))
-      .filter(Boolean);
+const allowedOrigins =
+  environment.corsOrigin === "*"
+    ? true
+    : environment.corsOrigin
+        .split(",")
+        .map((origin) => origin.trim().replace(/\/$/, ""))
+        .filter(Boolean);
 
 app.use(
   cors({
@@ -49,7 +50,8 @@ app.use(
 
       if (
         Array.isArray(allowedOrigins) &&
-        (allowedOrigins.includes(normalizedOrigin) || allowedOrigins.includes("*"))
+        (allowedOrigins.includes(normalizedOrigin) ||
+          allowedOrigins.includes("*"))
       ) {
         return callback(null, true);
       }
@@ -59,18 +61,28 @@ app.use(
         return callback(null, true);
       }
 
+      // Allow ngrok domains during testing
+      if (/^https:\/\/.*\.ngrok-free\.(app|dev)$/.test(normalizedOrigin)) {
+        return callback(null, true);
+      }
+
       const corsError = new Error("CORS policy: Origin not allowed");
       corsError.statusCode = 403;
       return callback(corsError);
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+    ],
     credentials: true,
     optionsSuccessStatus: 200,
-  })
+  }),
 );
 
-app.set('trust proxy', 1)
+app.set("trust proxy", 1);
 
 // ── Paystack webhook needs raw body BEFORE express.json() ────────────────────
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
@@ -92,15 +104,15 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// ── Auth Rate Limiter — 200 req/15 min per IP ───────────────────────────────
+// ── Auth Rate Limiter — 20 req/15 min per IP (Brute-Force Protection) ───────
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
-    message: "Too many authentication attempts, please try again later.",
+    message: "Too many authentication attempts. Please try again in 15 minutes.",
   },
 });
 

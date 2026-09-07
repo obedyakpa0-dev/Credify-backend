@@ -57,7 +57,22 @@ const createAccessToken = (userDocument) =>
 
 const createRandomToken = () => crypto.randomBytes(32).toString("hex");
 
-const createOtp = () => String(Math.floor(100000 + Math.random() * 900000));
+const createOtp = () => String(crypto.randomInt(100000, 1000000));
+
+const validatePasswordComplexity = (password) => {
+  if (!password || typeof password !== "string") {
+    throw createHttpError(400, "Password is required");
+  }
+  if (password.length < 8) {
+    throw createHttpError(400, "Password must be at least 8 characters long");
+  }
+  if (!/^(?=.*[A-Za-z])(?=.*[\d\W]).{8,}$/.test(password)) {
+    throw createHttpError(
+      400,
+      "Password must contain at least one letter and at least one number or symbol",
+    );
+  }
+};
 
 const createEmailTransport = () => {
   return nodemailer.createTransport({
@@ -221,9 +236,7 @@ const registerUser = async ({
     throw createHttpError(400, "Invalid email address format");
   }
 
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    throw createHttpError(400, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
-  }
+  validatePasswordComplexity(password);
 
   if (typeof name !== "string" || name.trim().length < 2) {
     throw createHttpError(400, "Name must be at least 2 characters");
@@ -385,6 +398,8 @@ const resetPassword = async ({ token, password } = {}) => {
     throw createHttpError(400, "token and password are required");
   }
 
+  validatePasswordComplexity(password);
+
   const user = await AuthenticationUser.findOne({
     resetToken: token,
     resetTokenExpiry: { $gt: new Date() },
@@ -541,7 +556,7 @@ const verifyOtp = async ({ email, otp } = {}) => {
 
   const user = await AuthenticationUser.findOne({
     email: email.trim().toLowerCase(),
-  }).select("+otpCode +otpExpiry");
+  }).select("+otpCode +otpExpiry +failedOtpAttempts");
 
   if (!user) {
     throw createHttpError(400, "No account found with that email address");
@@ -566,12 +581,30 @@ const verifyOtp = async ({ email, otp } = {}) => {
   }
 
   if (String(user.otpCode).trim() !== String(otp).trim()) {
-    throw createHttpError(400, "Incorrect code. Please try again.");
+    const newFailedAttempts = (user.failedOtpAttempts || 0) + 1;
+    if (newFailedAttempts >= 5) {
+      user.otpCode = "";
+      user.otpExpiry = null;
+      user.failedOtpAttempts = 0;
+      await user.save();
+      throw createHttpError(
+        400,
+        "Too many invalid attempts. Your verification code has been invalidated. Please request a new code.",
+      );
+    }
+    user.failedOtpAttempts = newFailedAttempts;
+    await user.save();
+    const remaining = 5 - newFailedAttempts;
+    throw createHttpError(
+      400,
+      `Incorrect code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`,
+    );
   }
 
   user.emailVerified = true;
   user.otpCode = "";
   user.otpExpiry = null;
+  user.failedOtpAttempts = 0;
   await user.save();
 
   const accessToken = createAccessToken(user);
@@ -590,7 +623,7 @@ const resendOtp = async ({ email } = {}) => {
 
   const user = await AuthenticationUser.findOne({
     email: email.trim().toLowerCase(),
-  }).select("+otpCode +otpExpiry");
+  }).select("+otpCode +otpExpiry +failedOtpAttempts");
 
   if (!user) {
     // Avoid user enumeration
@@ -606,6 +639,7 @@ const resendOtp = async ({ email } = {}) => {
 
   user.otpCode = otp;
   user.otpExpiry = otpExpiry;
+  user.failedOtpAttempts = 0;
   await user.save();
 
   await sendOtpEmail(user, otp);
@@ -621,9 +655,7 @@ const changePassword = async (userId, { currentPassword, newPassword } = {}) => 
     throw createHttpError(400, "Current password and new password are required");
   }
 
-  if (newPassword.length < MIN_PASSWORD_LENGTH) {
-    throw createHttpError(400, `New password must be at least ${MIN_PASSWORD_LENGTH} characters`);
-  }
+  validatePasswordComplexity(newPassword);
 
   const user = await AuthenticationUser.findById(userId).select("+password");
   if (!user) {

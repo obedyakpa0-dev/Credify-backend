@@ -7,10 +7,25 @@ const { createHttpError } = require("../../common/http");
  */
 const requireAuth = async (req, _res, next) => {
   try {
-    // Accept token from httpOnly cookie or Authorization header
-    const token =
-      req.cookies?.token ||
-      req.headers.authorization?.replace(/^Bearer\s+/i, "");
+    const tokenFromCookie = req.cookies?.token;
+    const authHeader = req.headers.authorization;
+    const token = tokenFromCookie || authHeader?.replace(/^Bearer\s+/i, "");
+
+    if (process.env.NODE_ENV !== "production") {
+      console.debug(
+        "[AuthMiddleware] requireAuth",
+        "path=",
+        req.path,
+        "cookiePresent=",
+        Boolean(tokenFromCookie),
+        "authHeaderPresent=",
+        Boolean(authHeader),
+        "cookieHeaderPresent=",
+        Boolean(req.headers.cookie),
+        "cookieHeader=",
+        req.headers.cookie || "<none>",
+      );
+    }
 
     const user = await authenticationService.getAuthenticatedUser(token);
     req.user = user;
@@ -34,7 +49,7 @@ const requireRoles = (roles = []) => {
 
     if (!allowedRoles.includes(req.user.role)) {
       return next(
-        createHttpError(403, "You do not have permission for this action")
+        createHttpError(403, "You do not have permission for this action"),
       );
     }
 
@@ -64,7 +79,7 @@ const requireSelf = (paramName = "userId") => {
     const targetId = req.params[paramName];
     if (!targetId || targetId !== req.user.id) {
       return next(
-        createHttpError(403, "You can only access your own resources")
+        createHttpError(403, "You can only access your own resources"),
       );
     }
 

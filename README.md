@@ -2,11 +2,11 @@
 
 A robust and scalable Node.js backend API for the Credify platform - an educational credentialing and certification system. Built with Express.js and MongoDB, this API provides comprehensive functionality for user management, course delivery, certification, payments, and more.
 
-## 🎯 Overview
+## Overview
 
 Credify is a complete credential management platform that empowers educational institutions, corporations, and training providers to create, manage, and verify digital credentials. The backend API handles authentication, course management, certification, payment processing, leaderboards, and administrative operations.
 
-## 🚀 Features
+## Features
 
 - **User Authentication & Authorization**
   - Secure JWT-based authentication
@@ -52,7 +52,7 @@ Credify is a complete credential management platform that empowers educational i
   - Multi-tenant company support
   - Company-specific configurations
 
-## 📋 Tech Stack
+## Tech Stack
 
 - **Runtime:** Node.js 20
 - **Framework:** Express.js 5.2.1
@@ -63,7 +63,7 @@ Credify is a complete credential management platform that empowers educational i
 - **Containerization:** Docker & Docker Compose
 - **Language:** JavaScript (CommonJS)
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 credify-backend/
@@ -98,7 +98,7 @@ credify-backend/
 └── package.json            # Project dependencies
 ```
 
-## 🔧 Installation
+## Installation
 
 ### Prerequisites
 
@@ -163,7 +163,7 @@ credify-backend/
    docker-compose down
    ```
 
-## 🔑 Environment Variables
+## Environment Variables
 
 Create a `.env` file in the root directory with the following variables:
 
@@ -207,7 +207,7 @@ NGROK_DOMAIN=your-ngrok-domain
 - Keep `PAYSTACK_SECRET_KEY` and `PAYSTACK_WEBHOOK_SECRET` confidential
 - Use environment-specific values for production deployment
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### Health & Status
 - `GET /` - Welcome message
@@ -283,7 +283,7 @@ NGROK_DOMAIN=your-ngrok-domain
 
 For detailed API documentation, refer to the [Postman Collection](./postman/).
 
-## 🔐 Authentication
+## Authentication
 
 The API uses JWT (JSON Web Tokens) for authentication. Include the token in the Authorization header:
 
@@ -298,7 +298,7 @@ Tokens are issued upon successful login and include:
 - Role
 - Expiration time (default: 7 days)
 
-## 🔄 Development Workflow
+## Development Workflow
 
 ### Available Scripts
 
@@ -323,7 +323,7 @@ npm test
 3. Push to branch: `git push origin feature/your-feature`
 4. Create Pull Request
 
-## 📦 Docker Deployment
+## Docker Deployment
 
 ### Build Docker Image
 
@@ -352,7 +352,7 @@ docker-compose down -v
 - **backend**: Express.js API server (port 5000)
 - **mongodb**: MongoDB database (port 27017)
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### MongoDB Connection Issues
 
@@ -390,14 +390,14 @@ ngrok config check
 - Verify all required variables are set
 - Use `.env.example` as reference
 
-## 📚 Documentation
+## Documentation
 
 - [API Documentation](./docs/API.md) - Detailed API endpoints
 - [Database Schema](./docs/SCHEMA.md) - MongoDB collections and models
 - [Deployment Guide](./docs/DEPLOYMENT.md) - Production deployment instructions
 - [Payment Integration](./docs/PAYMENTS.md) - Paystack integration guide
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please follow these steps:
 
@@ -415,26 +415,26 @@ Contributions are welcome! Please follow these steps:
 - Add comments for complex logic
 - Keep functions small and focused
 
-## 📝 License
+## License
 
 This project is licensed under the ISC License - see the [package.json](./package.json) file for details.
 
-## 🐛 Bug Reports & Feature Requests
+## Bug Reports & Feature Requests
 
 - [Report a Bug](https://github.com/obedyakpa0-dev/Credify-backend/issues/new?labels=bug)
 - [Request a Feature](https://github.com/obedyakpa0-dev/Credify-backend/issues/new?labels=enhancement)
 
-## 👤 Author
+## Author
 
-**Obedience Yak**
+**Obed Yakpa**
 - GitHub: [@obedyakpa0-dev](https://github.com/obedyakpa0-dev)
 - Repository: [Credify-backend](https://github.com/obedyakpa0-dev/Credify-backend)
 
-## 📞 Support
+## Support
 
 For support, email [your-email] or open an issue on the GitHub repository.
 
-## 🎉 Acknowledgments
+## Acknowledgments
 
 - Express.js team for the excellent web framework
 - MongoDB for the powerful database
