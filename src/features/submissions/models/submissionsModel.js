@@ -67,6 +67,9 @@ const submissionsSchema = new mongoose.Schema(
   },
 );
 
+submissionsSchema.index({ projectId: 1, userId: 1 }, { unique: true });
+submissionsSchema.index({ projectId: 1, status: 1, createdAt: -1 });
+
 const Submission =
   mongoose.models.Submission || mongoose.model("Submission", submissionsSchema);
 

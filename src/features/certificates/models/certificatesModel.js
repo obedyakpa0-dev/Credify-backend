@@ -33,6 +33,8 @@ const certificatesSchema = new mongoose.Schema(
   }
 );
 
+certificatesSchema.index({ userId: 1, projectId: 1 }, { unique: true });
+
 const Certificate =
   mongoose.models.Certificate || mongoose.model("Certificate", certificatesSchema);
 

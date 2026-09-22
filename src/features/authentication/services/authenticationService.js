@@ -18,7 +18,7 @@ const ROLE_REDIRECT_MAP = {
   admin: "/admin/dashboard",
 };
 
-const VALID_REGISTRATION_ROLES = ["student", "graduate", "company", "admin"];
+const VALID_REGISTRATION_ROLES = ["student", "graduate", "company"];
 
 const sanitizeUser = (userDocument) => ({
   id: userDocument._id.toString(),
@@ -50,12 +50,16 @@ const createAccessToken = (userDocument) =>
       sub: userDocument._id.toString(),
       email: userDocument.email,
       role: userDocument.role,
+      tokenVersion: userDocument.tokenVersion || 0,
     },
     environment.jwtSecret,
     { expiresIn: environment.jwtExpiresIn },
   );
 
 const createRandomToken = () => crypto.randomBytes(32).toString("hex");
+const hashToken = (token) => crypto.createHash("sha256").update(String(token)).digest("hex");
+const createRefreshToken = () => createRandomToken();
+const escapeHtml = (value) => String(value || "").replace(/[&<>\"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
 
 const createOtp = () => String(crypto.randomInt(100000, 1000000));
 
@@ -116,7 +120,7 @@ const getResetUrl = (token) =>
 
 const sendOtpEmail = async (user, otp) => {
   const subject = "Your Credify verification code";
-  const text = `Hi ${user.name},\n\nYour Credify verification code is: ${otp}\n\nThis code expires in 10 minutes. Do not share it with anyone.\n\nIf you did not create a Credify account, ignore this email.`;
+  const text = `Hi ${escapeHtml(user.name)},\n\nYour Credify verification code is: ${otp}\n\nThis code expires in 10 minutes. Do not share it with anyone.\n\nIf you did not create a Credify account, ignore this email.`;
   const html = `
     <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background-color: #ffffff; border: 1px solid #e1ecf8; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 24px;">
@@ -124,7 +128,7 @@ const sendOtpEmail = async (user, otp) => {
         <p style="color: #7a9ec0; font-size: 14px; margin-top: 4px;">Email Verification</p>
       </div>
       <div style="padding: 24px; background-color: #f8faff; border-radius: 8px; border: 1px solid #e1ecf8;">
-        <h3 style="color: #0d1f35; margin-top: 0;">Hi ${user.name},</h3>
+        <h3 style="color: #0d1f35; margin-top: 0;">Hi ${escapeHtml(user.name)},</h3>
         <p style="color: #4a6080; font-size: 15px; line-height: 1.6;">Enter the code below to verify your Credify account. It expires in <strong>10 minutes</strong>.</p>
         <div style="text-align: center; margin: 28px 0;">
           <div style="display: inline-block; background: #0f3460; color: #ffffff; font-size: 36px; font-weight: 800; letter-spacing: 12px; padding: 16px 32px; border-radius: 12px; font-family: monospace;">${otp}</div>
@@ -139,7 +143,7 @@ const sendOtpEmail = async (user, otp) => {
 const sendVerificationEmail = async (user, token) => {
   const verifyUrl = getVerificationUrl(token);
   const subject = "Verify your Credify Email Address";
-  const text = `Hi ${user.name},\n\nPlease verify your Credify account email by visiting the following URL:\n${verifyUrl}\n\nThis link will expire in 24 hours.\n\nIf you did not create a Credify account, please ignore this email.`;
+  const text = `Hi ${escapeHtml(user.name)},\n\nPlease verify your Credify account email by visiting the following URL:\n${verifyUrl}\n\nThis link will expire in 24 hours.\n\nIf you did not create a Credify account, please ignore this email.`;
   const html = `
     <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background-color: #ffffff; border: 1px solid #e1ecf8; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 24px;">
@@ -147,7 +151,7 @@ const sendVerificationEmail = async (user, token) => {
         <p style="color: #7a9ec0; font-size: 14px; margin-top: 4px;">Verified Skills & Credentials</p>
       </div>
       <div style="padding: 24px; background-color: #f8faff; border-radius: 8px; border: 1px solid #e1ecf8;">
-        <h3 style="color: #0d1f35; margin-top: 0;">Welcome to Credify, ${user.name}!</h3>
+        <h3 style="color: #0d1f35; margin-top: 0;">Welcome to Credify, ${escapeHtml(user.name)}!</h3>
         <p style="color: #4a6080; font-size: 15px; line-height: 1.6;">
           Please confirm your email address to fully activate your account and start building your verified skills portfolio.
         </p>
@@ -172,7 +176,7 @@ const sendVerificationEmail = async (user, token) => {
 const sendPasswordResetEmail = async (user, token) => {
   const resetUrl = getResetUrl(token);
   const subject = "Reset your Credify Password";
-  const text = `Hi ${user.name},\n\nClick the link below to reset your Credify password:\n${resetUrl}\n\nThis link expires in 1 hour. If you did not request a password reset, ignore this email.`;
+  const text = `Hi ${escapeHtml(user.name)},\n\nClick the link below to reset your Credify password:\n${resetUrl}\n\nThis link expires in 1 hour. If you did not request a password reset, ignore this email.`;
   const html = `
     <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background-color: #ffffff; border: 1px solid #e1ecf8; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 24px;">
@@ -180,7 +184,7 @@ const sendPasswordResetEmail = async (user, token) => {
         <p style="color: #7a9ec0; font-size: 14px; margin-top: 4px;">Password Reset Request</p>
       </div>
       <div style="padding: 24px; background-color: #f8faff; border-radius: 8px; border: 1px solid #e1ecf8;">
-        <h3 style="color: #0d1f35; margin-top: 0;">Hi ${user.name},</h3>
+        <h3 style="color: #0d1f35; margin-top: 0;">Hi ${escapeHtml(user.name)},</h3>
         <p style="color: #4a6080; font-size: 15px; line-height: 1.6;">
           We received a request to reset your password for your Credify account. Click the button below to choose a new password:
         </p>
@@ -287,7 +291,7 @@ const registerUser = async ({
     programme: programme ? programme.trim() : "",
     companyName: companyName ? companyName.trim() : "",
     role,
-    otpCode: otp,
+    otpCode: hashToken(otp),
     otpExpiry,
   });
 
@@ -314,7 +318,7 @@ const loginUser = async ({ email, password } = {}) => {
 
   const foundUser = await AuthenticationUser.findOne({
     email: normalizedEmail,
-  }).select("+password");
+  }).select("+password +tokenVersion");
 
   // Generic error avoids user enumeration
   if (!foundUser) {
@@ -327,15 +331,24 @@ const loginUser = async ({ email, password } = {}) => {
     throw createHttpError(401, "Invalid email or password");
   }
 
+  if (!foundUser.emailVerified) {
+    throw createHttpError(403, "Please verify your email address before signing in.");
+  }
+
   // Block suspended accounts
   if (foundUser.isSuspended) {
     throw createHttpError(403, "Your account has been suspended. Please contact support.");
   }
 
   const accessToken = createAccessToken(foundUser);
+  const refreshToken = createRefreshToken();
+  foundUser.refreshTokenHash = hashToken(refreshToken);
+  foundUser.refreshTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await foundUser.save();
 
   return {
     accessToken,
+    refreshToken,
     user: sanitizeUser(foundUser),
     redirectPath: ROLE_REDIRECT_MAP[foundUser.role] || "/dashboard",
   };
@@ -364,9 +377,15 @@ const getAuthenticatedUser = async (token) => {
     throw createHttpError(401, "Invalid token payload. Please sign in again.");
   }
 
-  const user = await AuthenticationUser.findById(payload.sub);
+  const user = await AuthenticationUser.findById(payload.sub).select("+tokenVersion");
   if (!user) {
     throw createHttpError(401, "User not found. Please sign in again.");
+  }
+  if (user.isSuspended) {
+    throw createHttpError(403, "Your account has been suspended. Please contact support.");
+  }
+  if ((payload.tokenVersion || 0) !== (user.tokenVersion || 0)) {
+    throw createHttpError(401, "Session is no longer valid. Please sign in again.");
   }
   return sanitizeUser(user);
 };
@@ -386,7 +405,7 @@ const requestPasswordReset = async ({ email } = {}) => {
   const resetToken = createRandomToken();
   const resetTokenExpiry = new Date(Date.now() + 1000 * 60 * 60);
 
-  user.resetToken = resetToken;
+  user.resetToken = hashToken(resetToken);
   user.resetTokenExpiry = resetTokenExpiry;
   await user.save();
 
@@ -401,7 +420,7 @@ const resetPassword = async ({ token, password } = {}) => {
   validatePasswordComplexity(password);
 
   const user = await AuthenticationUser.findOne({
-    resetToken: token,
+    resetToken: hashToken(token),
     resetTokenExpiry: { $gt: new Date() },
   }).select("+password");
 
@@ -410,6 +429,9 @@ const resetPassword = async ({ token, password } = {}) => {
   }
 
   user.password = await bcrypt.hash(password, environment.bcryptSaltRounds);
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
+  user.refreshTokenHash = "";
+  user.refreshTokenExpiry = null;
   user.resetToken = "";
   user.resetTokenExpiry = null;
   await user.save();
@@ -421,7 +443,7 @@ const verifyEmail = async ({ token } = {}) => {
   }
 
   const user = await AuthenticationUser.findOne({
-    verificationToken: token,
+    verificationToken: hashToken(token),
     verificationTokenExpiry: { $gt: new Date() },
   }).select("+verificationToken +verificationTokenExpiry");
 
@@ -540,7 +562,7 @@ const resendVerification = async ({ email } = {}, currentUser) => {
   const verificationToken = createRandomToken();
   const verificationTokenExpiry = new Date(Date.now() + 1000 * 60 * 60 * 24);
 
-  user.verificationToken = verificationToken;
+  user.verificationToken = hashToken(verificationToken);
   user.verificationTokenExpiry = verificationTokenExpiry;
   await user.save();
 
@@ -556,17 +578,23 @@ const verifyOtp = async ({ email, otp } = {}) => {
 
   const user = await AuthenticationUser.findOne({
     email: email.trim().toLowerCase(),
-  }).select("+otpCode +otpExpiry +failedOtpAttempts");
+  }).select("+otpCode +otpExpiry +failedOtpAttempts +tokenVersion");
 
   if (!user) {
     throw createHttpError(400, "No account found with that email address");
   }
 
   if (user.emailVerified) {
+    if (user.isSuspended) throw createHttpError(403, "Your account has been suspended. Please contact support.");
     // Already verified — just issue a token so they can proceed
     const accessToken = createAccessToken(user);
+    const refreshToken = createRefreshToken();
+    user.refreshTokenHash = hashToken(refreshToken);
+    user.refreshTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await user.save();
     return {
       accessToken,
+      refreshToken,
       user: sanitizeUser(user),
       redirectPath: ROLE_REDIRECT_MAP[user.role] || "/dashboard",
     };
@@ -580,7 +608,7 @@ const verifyOtp = async ({ email, otp } = {}) => {
     throw createHttpError(400, "This code has expired. Please request a new verification code.");
   }
 
-  if (String(user.otpCode).trim() !== String(otp).trim()) {
+  if (hashToken(String(otp).trim()) !== user.otpCode) {
     const newFailedAttempts = (user.failedOtpAttempts || 0) + 1;
     if (newFailedAttempts >= 5) {
       user.otpCode = "";
@@ -608,9 +636,14 @@ const verifyOtp = async ({ email, otp } = {}) => {
   await user.save();
 
   const accessToken = createAccessToken(user);
+  const refreshToken = createRefreshToken();
+  user.refreshTokenHash = hashToken(refreshToken);
+  user.refreshTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await user.save();
 
   return {
     accessToken,
+    refreshToken,
     user: sanitizeUser(user),
     redirectPath: ROLE_REDIRECT_MAP[user.role] || "/dashboard",
   };
@@ -637,7 +670,7 @@ const resendOtp = async ({ email } = {}) => {
   const otp = createOtp();
   const otpExpiry = new Date(Date.now() + 1000 * 60 * 10);
 
-  user.otpCode = otp;
+  user.otpCode = hashToken(otp);
   user.otpExpiry = otpExpiry;
   user.failedOtpAttempts = 0;
   await user.save();
@@ -668,9 +701,48 @@ const changePassword = async (userId, { currentPassword, newPassword } = {}) => 
   }
 
   user.password = await bcrypt.hash(newPassword, environment.bcryptSaltRounds);
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
+  user.refreshTokenHash = "";
+  user.refreshTokenExpiry = null;
   await user.save();
 
   return { message: "Password updated successfully" };
+};
+
+const refreshSession = async (refreshToken) => {
+  if (!refreshToken) throw createHttpError(401, "Refresh token is required");
+  const tokenHash = hashToken(refreshToken);
+  const user = await AuthenticationUser.findOne({
+    refreshTokenHash: tokenHash,
+    refreshTokenExpiry: { $gt: new Date() },
+  }).select("+refreshTokenHash +refreshTokenExpiry +tokenVersion");
+  if (!user || user.isSuspended) throw createHttpError(401, "Invalid refresh token");
+
+  const newRefreshToken = createRefreshToken();
+  user.refreshTokenHash = hashToken(newRefreshToken);
+  user.refreshTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await user.save();
+
+  return { accessToken: createAccessToken(user), refreshToken: newRefreshToken, user: sanitizeUser(user), redirectPath: ROLE_REDIRECT_MAP[user.role] || "/dashboard" };
+};
+
+const revokeRefreshToken = async (refreshToken) => {
+  if (!refreshToken) return;
+  const user = await AuthenticationUser.findOne({ refreshTokenHash: hashToken(refreshToken) }).select("+refreshTokenHash +refreshTokenExpiry +tokenVersion");
+  if (!user) return;
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
+  user.refreshTokenHash = "";
+  user.refreshTokenExpiry = null;
+  await user.save();
+};
+
+const revokeSession = async (userId) => {
+  const user = await AuthenticationUser.findById(userId).select("+tokenVersion +refreshTokenHash +refreshTokenExpiry");
+  if (!user) return;
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
+  user.refreshTokenHash = "";
+  user.refreshTokenExpiry = null;
+  await user.save();
 };
 
 module.exports = {
@@ -685,4 +757,7 @@ module.exports = {
   resendVerification,
   updateUserProfile,
   changePassword,
+  refreshSession,
+  revokeSession,
+  revokeRefreshToken,
 };

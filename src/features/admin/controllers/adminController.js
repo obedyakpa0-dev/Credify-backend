@@ -30,6 +30,7 @@ const updateUser = async (req, res) => {
     const user = await adminService.updateAdminUser(
       req.params.userId,
       req.body,
+      req.user,
     );
     return sendSuccess(res, {
       message: "Admin user updated successfully",

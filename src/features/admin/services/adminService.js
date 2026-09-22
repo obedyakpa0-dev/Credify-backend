@@ -127,9 +127,15 @@ const getAdminUsers = async () => {
   }));
 };
 
-const updateAdminUser = async (userId, updates = {}) => {
+const updateAdminUser = async (userId, updates = {}, actingUser) => {
   if (!userId) {
     throw createHttpError(400, "userId is required");
+  }
+
+  const targetUser = await AuthenticationUser.findById(userId).select("+tokenVersion +refreshTokenHash +refreshTokenExpiry role");
+  if (!targetUser) throw createHttpError(404, "User not found");
+  if (actingUser?.id === userId && updates.role && updates.role !== "admin") {
+    throw createHttpError(400, "You cannot remove your own admin role");
   }
 
   const allowedFields = [
@@ -161,6 +167,13 @@ const updateAdminUser = async (userId, updates = {}) => {
 
   if (!updatedUser) {
     throw createHttpError(404, "User not found");
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updatePayload, "role") || Object.prototype.hasOwnProperty.call(updatePayload, "isSuspended")) {
+    await AuthenticationUser.findByIdAndUpdate(userId, {
+      $inc: { tokenVersion: 1 },
+      $set: { refreshTokenHash: "", refreshTokenExpiry: null },
+    });
   }
 
   return {

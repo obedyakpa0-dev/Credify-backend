@@ -6,6 +6,8 @@ const authenticationSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      minlength: 2,
+      maxlength: 120,
     },
 
     email: {
@@ -14,6 +16,7 @@ const authenticationSchema = new mongoose.Schema(
       unique: true,
       trim: true,
       lowercase: true,
+      maxlength: 254,
     },
 
     password: {
@@ -144,6 +147,24 @@ const authenticationSchema = new mongoose.Schema(
 
     resetTokenExpiry: {
       type: Date,
+      select: false,
+    },
+
+    refreshTokenHash: {
+      type: String,
+      default: "",
+      select: false,
+    },
+
+    refreshTokenExpiry: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+
+    tokenVersion: {
+      type: Number,
+      default: 0,
       select: false,
     },
 

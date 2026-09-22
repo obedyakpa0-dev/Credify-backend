@@ -7,24 +7,13 @@ const { createHttpError } = require("../../common/http");
  */
 const requireAuth = async (req, _res, next) => {
   try {
-    const tokenFromCookie = req.cookies?.token;
+    const cookieToken = req.cookies?.token;
     const authHeader = req.headers.authorization;
-    const token = tokenFromCookie || authHeader?.replace(/^Bearer\s+/i, "");
+    const bearerToken = authHeader?.match(/^Bearer\s+([^\s]+)$/i)?.[1];
+    const token = cookieToken || bearerToken;
 
-    if (process.env.NODE_ENV !== "production") {
-      console.debug(
-        "[AuthMiddleware] requireAuth",
-        "path=",
-        req.path,
-        "cookiePresent=",
-        Boolean(tokenFromCookie),
-        "authHeaderPresent=",
-        Boolean(authHeader),
-        "cookieHeaderPresent=",
-        Boolean(req.headers.cookie),
-        "cookieHeader=",
-        req.headers.cookie || "<none>",
-      );
+    if (!token) {
+      return next(createHttpError(401, "Authentication required"));
     }
 
     const user = await authenticationService.getAuthenticatedUser(token);

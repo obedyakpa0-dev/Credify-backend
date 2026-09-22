@@ -7,7 +7,7 @@ const paymentConfig = require("../../../../config/payment");
 const { createHttpError } = require("../../../common/http");
 
 const allowedStatus = ["pending", "paid", "failed", "refunded"];
-const privilegedRoles = ["admin", "company"];
+const privilegedRoles = ["admin"];
 
 const assertObjectId = (value, fieldName) => {
   if (!mongoose.Types.ObjectId.isValid(value)) {
@@ -16,7 +16,7 @@ const assertObjectId = (value, fieldName) => {
 };
 
 const createPaymentReference = () =>
-  `PAY-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  `PAY-${Date.now()}-${crypto.randomBytes(8).toString("hex").toUpperCase()}`;
 
 const toPaymentResponse = (paymentDocument) => ({
   id: paymentDocument._id.toString(),
@@ -45,6 +45,7 @@ const createRequestPromise = (url, options = {}) =>
       });
     });
 
+    request.setTimeout(10000, () => request.destroy(new Error("Paystack request timed out")));
     request.on("error", reject);
 
     if (options.body) {
@@ -209,6 +210,16 @@ const triggerCertificateCreation = async (payment) => {
     if (purpose === "certificate" && projectId) {
       const certificatesService = require("../../certificates/services/certificatesService");
       const Certificate = require("../../certificates/models/certificatesModel");
+      const Submission = require("../../submissions/models/submissionsModel");
+      const approvedSubmission = await Submission.findOne({
+        userId: payment.userId,
+        projectId,
+        status: "approved",
+      });
+      if (!approvedSubmission) {
+        console.warn(`Certificate not created: no approved submission for user ${payment.userId} and project ${projectId}`);
+        return;
+      }
       const existing = await Certificate.findOne({
         userId: payment.userId,
         projectId: projectId,
@@ -235,7 +246,14 @@ const updatePaymentFromPaystackVerification = async (reference, verificationData
     ...(payment.metadata || {}),
     paystack: {
       ...getPaystackMetadata(payment),
-      verify: verificationData,
+      verify: {
+        status: verificationData.status,
+        reference: verificationData.reference,
+        amount: verificationData.amount,
+        currency: verificationData.currency,
+        paid_at: verificationData.paid_at || null,
+        channel: verificationData.channel || null,
+      },
     },
   };
 
@@ -272,65 +290,94 @@ const updatePaymentStatusById = async (paymentId, status) => {
   return payment;
 };
 
-const initializePaystackPayment = async (
-  { amount, currency, metadata, callbackUrl, userId, email } = {},
-  currentUser
-) => {
-  const payer = await resolvePayer(
-    { userId, email },
-    currentUser,
-    { requireEmail: true, allowPrivilegedOverride: true }
-  );
+const initializePaystackPayment = async ({ metadata = {}, callbackUrl } = {}, currentUser) => {
+  if (!currentUser?.id) throw createHttpError(401, "Authentication required");
+  if (!paymentConfig.paystack.secretKey) throw createHttpError(503, "Paystack payments are not configured");
 
-  if (amount === undefined) {
-    throw createHttpError(400, "amount is required");
+  const purpose = String(metadata?.purpose || "").trim().toLowerCase();
+  const projectId = metadata?.projectId;
+  if (purpose !== "certificate" || !projectId) {
+    throw createHttpError(400, "A certificate projectId is required for payment");
+  }
+  assertObjectId(projectId, "projectId");
+
+  const Project = require("../../projects/models/projectsModel");
+  const project = await Project.findById(projectId).select("_id status approvalStatus");
+  if (!project) throw createHttpError(404, "Project not found");
+  if (project.approvalStatus !== "approved") throw createHttpError(400, "Project is not approved");
+
+  const Submission = require("../../submissions/models/submissionsModel");
+  const approvedSubmission = await Submission.findOne({ userId: currentUser.id, projectId, status: "approved" }).select("_id");
+  if (!approvedSubmission) throw createHttpError(400, "You can only purchase a certificate after your submission has been approved");
+
+  const existingCertificate = await require("../../certificates/models/certificatesModel").findOne({ userId: currentUser.id, projectId });
+  if (existingCertificate) throw createHttpError(409, "A certificate already exists for this project");
+
+  const expectedAmount = Number(paymentConfig.certificatePrice);
+  if (!Number.isFinite(expectedAmount) || expectedAmount <= 0) {
+    throw createHttpError(500, "CERTIFICATE_PRICE is not configured correctly");
   }
 
-  const numericAmount = Number(amount);
-  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-    throw createHttpError(400, "amount must be a valid positive number");
+  const existingPending = await Payment.findOne({
+    userId: currentUser.id,
+    "metadata.purpose": "certificate",
+    "metadata.projectId": String(projectId),
+    status: "pending",
+  }).sort({ createdAt: -1 });
+  if (existingPending) {
+    return {
+      payment: toPaymentResponse(existingPending),
+      checkout: getPaystackCheckout(existingPending),
+    };
   }
 
   const reference = createPaymentReference();
-  const safeMetadata = metadata && typeof metadata === "object" ? metadata : {};
+  const safeMetadata = {
+    purpose: "certificate",
+    projectId: String(projectId),
+  };
+  const currency = paymentConfig.currency.toUpperCase();
 
-  const paystackInitializeResponse = await paystackRequest("/transaction/initialize", {
+  const response = await paystackRequest("/transaction/initialize", {
     method: "POST",
     body: {
-      email: payer.email,
-      amount: Math.round(numericAmount * 100),
-      currency: String(currency || paymentConfig.currency).toUpperCase(),
+      email: currentUser.email,
+      amount: Math.round(expectedAmount * 100),
+      currency,
       reference,
       callback_url: callbackUrl || paymentConfig.callbackUrl,
-      metadata: {
-        ...safeMetadata,
-        userId: payer.userId,
-      },
+      metadata: safeMetadata,
     },
   });
 
   const createdPayment = await Payment.create({
-    userId: payer.userId,
-    amount: numericAmount,
-    currency: String(currency || paymentConfig.currency).toUpperCase(),
+    userId: currentUser.id,
+    amount: expectedAmount,
+    currency,
     provider: "paystack",
     status: "pending",
     reference,
     metadata: {
       ...safeMetadata,
       paystack: {
-        initialize: paystackInitializeResponse.data,
+        initialize: {
+          authorization_url: response.data.authorization_url,
+          access_code: response.data.access_code,
+          reference: response.data.reference,
+        },
       },
     },
   });
 
+  return { payment: toPaymentResponse(createdPayment), checkout: getPaystackCheckout(createdPayment) };
+};
+
+const getPaystackCheckout = (payment) => {
+  const initialize = getPaystackMetadata(payment, "initialize");
   return {
-    payment: toPaymentResponse(createdPayment),
-    checkout: {
-      authorizationUrl: paystackInitializeResponse.data.authorization_url,
-      accessCode: paystackInitializeResponse.data.access_code,
-      reference: paystackInitializeResponse.data.reference,
-    },
+    authorizationUrl: initialize.authorization_url,
+    accessCode: initialize.access_code,
+    reference: payment.reference,
   };
 };
 
@@ -346,6 +393,16 @@ const verifyPaystackPayment = async (reference, currentUser) => {
   const paystackVerificationResponse = await paystackRequest(
     `/transaction/verify/${encodeURIComponent(normalizedReference)}`
   );
+  const verified = paystackVerificationResponse.data;
+  if (!verified || verified.reference !== existingPayment.reference) {
+    throw createHttpError(502, "Paystack returned an invalid payment reference");
+  }
+  if (String(verified.currency || "").toUpperCase() !== String(existingPayment.currency).toUpperCase()) {
+    throw createHttpError(400, "Payment currency does not match the expected currency");
+  }
+  if (Number(verified.amount) !== Math.round(Number(existingPayment.amount) * 100)) {
+    throw createHttpError(400, "Payment amount does not match the expected amount");
+  }
 
   const updatedPayment = await updatePaymentFromPaystackVerification(
     normalizedReference,
@@ -380,8 +437,11 @@ const assertPaystackWebhookSignature = (rawPayload, signature) => {
     .createHmac("sha512", webhookSecret)
     .update(rawPayload)
     .digest("hex");
+  const supplied = String(signatureValue).trim().toLowerCase();
+  const expectedBuffer = Buffer.from(computedSignature, "utf8");
+  const suppliedBuffer = Buffer.from(supplied, "utf8");
 
-  if (computedSignature !== String(signatureValue).trim().toLowerCase()) {
+  if (expectedBuffer.length !== suppliedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, suppliedBuffer)) {
     throw createHttpError(401, "Invalid Paystack webhook signature");
   }
 };
@@ -524,25 +584,13 @@ const updatePaymentStatus = async (paymentId, status, currentUser) => {
   return toPaymentResponse(updatedPayment);
 };
 
-const processPaymentCallback = async ({ reference, trxref, status } = {}) => {
+const processPaymentCallback = async ({ reference, trxref } = {}) => {
   const normalizedReference = String(reference || trxref || "").trim();
-
-  if (!normalizedReference) {
-    throw createHttpError(400, "reference is required");
+  if (!normalizedReference) throw createHttpError(400, "reference is required");
+  if ((paymentConfig.provider || "").toLowerCase() !== "paystack") {
+    throw createHttpError(503, "Payment callbacks are not available until Paystack is configured");
   }
-
-  if ((paymentConfig.provider || "").toLowerCase() === "paystack") {
-    const verificationResult = await verifyPaystackPayment(normalizedReference);
-    return verificationResult.payment;
-  }
-
-  if (!status) {
-    throw createHttpError(400, "status is required");
-  }
-
-  const payment = await getPaymentByReference(normalizedReference);
-  const updatedPayment = await updatePaymentStatusById(payment._id.toString(), status);
-  return toPaymentResponse(updatedPayment);
+  return verifyPaystackPayment(normalizedReference);
 };
 
 module.exports = {

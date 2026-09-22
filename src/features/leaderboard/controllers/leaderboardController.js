@@ -5,7 +5,7 @@ const upsertEntry = async (req, res) => {
   try {
     // Always bind the leaderboard entry to the authenticated user — ignore any userId in body
     const entry = await leaderboardService.upsertEntry({
-      ...req.body,
+      displayName: req.body.displayName,
       userId: req.user.id,
     });
     return sendSuccess(res, {

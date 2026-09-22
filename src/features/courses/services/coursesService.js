@@ -29,25 +29,27 @@ const createCourse = async ({
   points,
   durationHours,
   isPublished,
-} = {}) => {
+} = {}, currentUser) => {
   if (!title || typeof title !== "string") {
     throw createHttpError(400, "title is required");
   }
 
+  if (!currentUser?.id) throw createHttpError(401, "Authentication required");
   const createdCourse = await Course.create({
+    ownerId: currentUser.id,
     title: title.trim(),
     description,
     category,
     level,
     points,
     durationHours,
-    isPublished,
+    isPublished: currentUser.role === "admin" ? Boolean(isPublished) : false,
   });
 
   return toCourseResponse(createdCourse);
 };
 
-const listCourses = async ({ publishedOnly = false, limit = 20, page = 1 } = {}) => {
+const listCourses = async ({ publishedOnly = true, limit = 20, page = 1 } = {}) => {
   const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
   const safePage = Math.max(Number(page) || 1, 1);
   const skip = (safePage - 1) * safeLimit;
@@ -75,7 +77,7 @@ const getCourseById = async (courseId) => {
 
   assertObjectId(courseId, "courseId");
 
-  const course = await Course.findById(courseId);
+  const course = await Course.findOne({ _id: courseId, isPublished: true });
 
   if (!course) {
     throw createHttpError(404, "Course not found");
@@ -84,12 +86,16 @@ const getCourseById = async (courseId) => {
   return toCourseResponse(course);
 };
 
-const updateCourse = async (courseId, updates = {}) => {
+const updateCourse = async (courseId, updates = {}, currentUser) => {
   if (!courseId) {
     throw createHttpError(400, "courseId is required");
   }
 
   assertObjectId(courseId, "courseId");
+  if (!currentUser?.id) throw createHttpError(401, "Authentication required");
+  const existingCourse = await Course.findById(courseId);
+  if (!existingCourse) throw createHttpError(404, "Course not found");
+  if (currentUser.role !== "admin" && existingCourse.ownerId?.toString() !== currentUser.id) throw createHttpError(403, "You can only modify your own courses");
 
   const allowedFields = [
     "title",

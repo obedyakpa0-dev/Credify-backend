@@ -15,7 +15,7 @@ router.use(requireAuth);
 
 router.post("/paystack/initialize", paymentsController.initializePaystackPayment);
 router.get("/paystack/verify/:reference", paymentsController.verifyPaystackPayment);
-router.post("/", paymentsController.createPayment);
+router.post("/", requireRoles(["admin"]), paymentsController.createPayment);
 // Scoped in controller: non-admins see only their own payments
 router.get("/", paymentsController.listPayments);
 router.patch(

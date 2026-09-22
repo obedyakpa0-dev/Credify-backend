@@ -3,7 +3,7 @@ const { sendSuccess, sendError } = require("../../../common/http");
 
 const createCourse = async (req, res) => {
   try {
-    const course = await coursesService.createCourse(req.body);
+    const course = await coursesService.createCourse(req.body, req.user);
     return sendSuccess(res, {
       statusCode: 201,
       message: "Course created successfully",
@@ -42,7 +42,7 @@ const getCourseById = async (req, res) => {
 
 const updateCourse = async (req, res) => {
   try {
-    const course = await coursesService.updateCourse(req.params.courseId, req.body);
+    const course = await coursesService.updateCourse(req.params.courseId, req.body, req.user);
     return sendSuccess(res, {
       message: "Course updated successfully",
       data: { course },

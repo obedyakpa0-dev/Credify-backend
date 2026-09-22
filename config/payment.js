@@ -3,6 +3,7 @@ const environment = require("./environment");
 const paymentConfig = {
   provider: process.env.PAYMENT_PROVIDER || "manual",
   currency: process.env.PAYMENT_CURRENCY || "GHS",
+  certificatePrice: Number(process.env.CERTIFICATE_PRICE || 100),
   callbackUrl:
     process.env.PAYMENT_CALLBACK_URL ||
     `http://localhost:${environment.port}/api/payments/callback`,

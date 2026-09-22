@@ -74,10 +74,8 @@ const listProjects = async ({ approvalStatus = "approved", status, ownerId, tag,
   const skip = (safePage - 1) * safeLimit;
   const filter = {};
 
-  // By default public browse only shows approved projects unless explicit filter is passed
-  if (approvalStatus && approvalStatus !== "all") {
-    filter.approvalStatus = approvalStatus;
-  }
+  // Public project browsing must never expose pending/rejected projects.
+  filter.approvalStatus = "approved";
 
   if (status) {
     filter.status = status;
@@ -121,7 +119,7 @@ const getProjectById = async (projectId) => {
   }
 
   assertObjectId(projectId, "projectId");
-  const project = await Project.findById(projectId);
+  const project = await Project.findOne({ _id: projectId, approvalStatus: "approved" });
 
   if (!project) {
     throw createHttpError(404, "Project not found");
@@ -186,6 +184,14 @@ const updateProject = async (projectId, updates = {}, currentUser) => {
 
   if (Object.keys(updatePayload).length === 0) {
     throw createHttpError(400, "At least one updatable field is required");
+  }
+
+  if (currentUser.role === "company" && project.approvalStatus === "approved") {
+    const contentFields = ["title", "description", "skill", "instructions", "duration", "type", "repositoryUrl", "liveUrl", "deadline", "techStack", "tags"];
+    if (contentFields.some((field) => Object.prototype.hasOwnProperty.call(updatePayload, field))) {
+      updatePayload.approvalStatus = "pending";
+      updatePayload.status = "draft";
+    }
   }
 
   const updatedProject = await Project.findByIdAndUpdate(projectId, updatePayload, {

@@ -97,11 +97,13 @@ const paymentCallback = async (req, res) => {
       ...(req.method === "GET" ? req.body : req.query),
     };
 
-    const payment = await paymentsService.processPaymentCallback(callbackPayload);
+    const result = await paymentsService.processPaymentCallback(callbackPayload);
+    const payment = result.payment || result;
     const environment = require("../../../../config/environment");
     const frontendUrl = environment.frontendUrl || "http://localhost:5173";
+    const status = payment.status === "paid" ? "success" : payment.status;
     return res.redirect(
-      `${frontendUrl}/student-dashboard/certificates?status=success&reference=${payment.reference}`
+      `${frontendUrl}/student-dashboard/certificates?status=${encodeURIComponent(status)}&reference=${encodeURIComponent(payment.reference)}`
     );
   } catch (error) {
     return sendError(res, error);

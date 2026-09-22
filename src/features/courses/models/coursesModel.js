@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const coursesSchema = new mongoose.Schema(
   {
+    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "AuthenticationUser", default: null },
     title: {
       type: String,
       required: true,

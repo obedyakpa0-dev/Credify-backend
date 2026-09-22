@@ -267,11 +267,12 @@ const getSubmissionById = async (submissionId, currentUser) => {
     throw createHttpError(404, "Submission not found");
   }
 
-  const isPrivilegedRole = ["admin", "company"].includes(currentUser.role);
-  if (
-    !isPrivilegedRole &&
-    submission.userId._id.toString() !== currentUser.id
-  ) {
+  if (currentUser.role === "company") {
+    const ownerId = submission.projectId?.ownerId?.toString();
+    if (ownerId !== currentUser.id) {
+      throw createHttpError(403, "You are not allowed to access this submission");
+    }
+  } else if (currentUser.role !== "admin" && submission.userId._id.toString() !== currentUser.id) {
     throw createHttpError(403, "You are not allowed to access this submission");
   }
 
@@ -299,6 +300,12 @@ const updateSubmissionStatus = async (
   }
 
   assertObjectId(submissionId, "submissionId");
+
+  const submission = await Submission.findById(submissionId).populate("projectId", "ownerId");
+  if (!submission) throw createHttpError(404, "Submission not found");
+  if (currentUser.role === "company" && submission.projectId?.ownerId?.toString() !== currentUser.id) {
+    throw createHttpError(403, "You can only review submissions for your own projects");
+  }
 
   const allowedStatus = ["pending", "reviewing", "approved", "rejected"];
   if (!allowedStatus.includes(status)) {

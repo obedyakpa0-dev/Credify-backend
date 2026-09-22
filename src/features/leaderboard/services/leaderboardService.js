@@ -19,44 +19,16 @@ const toLeaderboardResponse = (entryDocument) => ({
   updatedAt: entryDocument.updatedAt,
 });
 
-const upsertEntry = async ({
-  userId,
-  displayName,
-  points,
-  badgesCount,
-  completedCourses,
-} = {}) => {
-  if (!userId || !displayName) {
-    throw createHttpError(400, "userId and displayName are required");
-  }
-
+const upsertEntry = async ({ userId, displayName } = {}) => {
+  if (!userId || !displayName) throw createHttpError(400, "userId and displayName are required");
   assertObjectId(userId, "userId");
-
-  const updatePayload = {
-    displayName: displayName.trim(),
-  };
-
-  if (points !== undefined) {
-    updatePayload.points = points;
-  }
-
-  if (badgesCount !== undefined) {
-    updatePayload.badgesCount = badgesCount;
-  }
-
-  if (completedCourses !== undefined) {
-    updatePayload.completedCourses = completedCourses;
-  }
-
   const entry = await LeaderboardEntry.findOneAndUpdate(
     { userId },
-    { $set: updatePayload, $setOnInsert: { userId } },
+    { $set: { displayName: String(displayName).trim() }, $setOnInsert: { userId, points: 0, badgesCount: 0, completedCourses: 0 } },
     { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
   );
-
   return toLeaderboardResponse(entry);
 };
-
 const getTopEntries = async ({ limit = 10 } = {}) => {
   const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 100);
 

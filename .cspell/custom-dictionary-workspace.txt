@@ -1,0 +1,6 @@
+# Custom Dictionary Words
+authtoken
+Credify
+maxlength
+paystack
+trxref

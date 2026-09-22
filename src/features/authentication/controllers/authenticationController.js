@@ -1,4 +1,5 @@
 const authenticationService = require("../services/authenticationService");
+const { setCsrfCookie } = require("../../../shared/middleware/securityMiddleware");
 const environment = require("../../../../config/environment");
 
 const getCookieOptions = (req) => {
@@ -7,8 +8,8 @@ const getCookieOptions = (req) => {
   return {
     httpOnly: true,
     secure: useSecureCookie,
-    sameSite: isProduction ? "strict" : "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    sameSite: isProduction ? "none" : "lax",
+    maxAge: isProduction ? 15 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000,
     path: "/",
   };
 };
@@ -30,15 +31,18 @@ const resolveStatusCode = (error) => {
 };
 
 const handleErrorResponse = (res, error) => {
-  console.error("[Auth Error]", error);
   const statusCode = resolveStatusCode(error);
+  if (statusCode >= 500) {
+    console.error("[Auth Error 500]", error);
+  } else {
+    console.warn(`[Auth ${statusCode}] ${error.message || error}`);
+  }
   const message =
-    error.message || "Something went wrong. Please try again later.";
+    statusCode >= 500 && environment.nodeEnv === "production"
+      ? "Something went wrong. Please try again later."
+      : error.message || "Something went wrong. Please try again later.";
 
-  res.status(statusCode).json({
-    success: false,
-    message,
-  });
+  res.status(statusCode).json({ success: false, message });
 };
 
 const register = async (req, res) => {
@@ -60,6 +64,8 @@ const login = async (req, res) => {
     const result = await authenticationService.loginUser(req.body);
 
     res.cookie("token", result.accessToken, getCookieOptions(req));
+    res.cookie("refreshToken", result.refreshToken, { ...getCookieOptions(req), maxAge: 7 * 24 * 60 * 60 * 1000 });
+    setCsrfCookie(res);
 
     return res.status(200).json({
       success: true,
@@ -181,6 +187,8 @@ const verifyOtp = async (req, res) => {
     const result = await authenticationService.verifyOtp(req.body);
 
     res.cookie("token", result.accessToken, getCookieOptions(req));
+    res.cookie("refreshToken", result.refreshToken, { ...getCookieOptions(req), maxAge: 7 * 24 * 60 * 60 * 1000 });
+    setCsrfCookie(res);
 
     return res.status(200).json({
       success: true,
@@ -207,8 +215,30 @@ const resendOtp = async (req, res) => {
   }
 };
 
-const logout = (req, res) => {
+const refresh = async (req, res) => {
+  try {
+    const result = await authenticationService.refreshSession(req.cookies?.refreshToken);
+    res.cookie("token", result.accessToken, getCookieOptions(req));
+    res.cookie("refreshToken", result.refreshToken, { ...getCookieOptions(req), maxAge: 7 * 24 * 60 * 60 * 1000 });
+    setCsrfCookie(res);
+    return res.status(200).json({ success: true, message: "Session refreshed", data: { user: result.user, redirectPath: result.redirectPath } });
+  } catch (error) {
+    return handleErrorResponse(res, error);
+  }
+};
+
+const csrf = (_req, res) => {
+  const csrfToken = setCsrfCookie(res);
+  return res.status(200).json({ success: true, data: { csrfToken } });
+};
+
+const logout = async (req, res) => {
+  try {
+    if (req.cookies?.refreshToken) await authenticationService.revokeRefreshToken(req.cookies.refreshToken);
+  } catch (_error) {}
   res.clearCookie("token", getCookieOptions(req));
+  res.clearCookie("refreshToken", { ...getCookieOptions(req), maxAge: 0 });
+  res.clearCookie("csrfToken", { ...getCookieOptions(req), httpOnly: false, maxAge: 0 });
 
   return res.status(200).json({
     success: true,
@@ -252,4 +282,6 @@ module.exports = {
   getMe,
   updateProfile,
   changePassword,
+  refresh,
+  csrf,
 };

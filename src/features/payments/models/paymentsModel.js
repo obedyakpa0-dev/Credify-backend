@@ -11,6 +11,7 @@ const paymentsSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
+      max: 1000000,
     },
     currency: {
       type: String,
@@ -23,7 +24,8 @@ const paymentsSchema = new mongoose.Schema(
     provider: {
       type: String,
       trim: true,
-      default: "manual",
+      enum: ["paystack", "manual"],
+      default: "paystack",
     },
     status: {
       type: String,
@@ -46,6 +48,8 @@ const paymentsSchema = new mongoose.Schema(
     versionKey: false,
   }
 );
+
+paymentsSchema.index({ userId: 1, status: 1, createdAt: -1 });
 
 const Payment = mongoose.models.Payment || mongoose.model("Payment", paymentsSchema);
 

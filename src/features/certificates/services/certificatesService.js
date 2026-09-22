@@ -62,15 +62,18 @@ const createCertificate = async ({ userId, projectId, certificateNumber, metadat
   return toCertificateResponse(createdCertificate);
 };
 
-const listCertificates = async ({ userId, limit = 20, page = 1 } = {}) => {
+const listCertificates = async ({ userId, limit = 20, page = 1 } = {}, currentUser) => {
+  if (!currentUser?.id) throw createHttpError(401, "Authentication required");
   const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
   const safePage = Math.max(Number(page) || 1, 1);
   const skip = (safePage - 1) * safeLimit;
   const filter = {};
 
-  if (userId) {
-    assertObjectId(userId, "userId");
-    filter.userId = userId;
+  if (userId) assertObjectId(userId, "userId");
+  if (currentUser.role === "admin") {
+    if (userId) filter.userId = userId;
+  } else {
+    filter.userId = currentUser.id;
   }
 
   const [certificates, total] = await Promise.all([
@@ -93,7 +96,8 @@ const listCertificates = async ({ userId, limit = 20, page = 1 } = {}) => {
   };
 };
 
-const getCertificateById = async (certificateId) => {
+const getCertificateById = async (certificateId, currentUser) => {
+  if (!currentUser?.id) throw createHttpError(401, "Authentication required");
   if (!certificateId) {
     throw createHttpError(400, "certificateId is required");
   }
@@ -103,9 +107,9 @@ const getCertificateById = async (certificateId) => {
   const certificate = await Certificate.findById(certificateId)
     .populate("projectId")
     .populate("userId");
-  if (!certificate) {
-    throw createHttpError(404, "Certificate not found");
-  }
+  if (!certificate) throw createHttpError(404, "Certificate not found");
+  const ownerId = certificate.userId?._id?.toString() || certificate.userId?.toString();
+  if (currentUser.role !== "admin" && ownerId !== currentUser.id) throw createHttpError(403, "You are not allowed to access this certificate");
 
   return toCertificateResponse(certificate);
 };

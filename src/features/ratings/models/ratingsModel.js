@@ -45,6 +45,7 @@ const ratingsSchema = new mongoose.Schema(
 );
 
 ratingsSchema.index({ submissionId: 1, raterId: 1 }, { unique: true });
+ratingsSchema.index({ projectId: 1, createdAt: -1 });
 
 const Rating = mongoose.models.Rating || mongoose.model("Rating", ratingsSchema);
 

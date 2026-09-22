@@ -16,7 +16,10 @@ const ratingsRoutes = require("./features/ratings/routes/ratingsRoutes");
 const submissionsRoutes = require("./features/submissions/routes/submissionsRoutes");
 const leaderboardRoutes = require("./features/leaderboard/routes/leaderboardRoutes");
 const contactRoutes = require("./features/contact/routes/contactRoutes");
+const coursesRoutes = require("./features/courses/routes/coursesRoutes");
+const badgesRoutes = require("./features/badges/routes/badgesRoutes");
 const cookieParser = require("cookie-parser");
+const { requireCsrf, requireTrustedOrigin } = require("./shared/middleware/securityMiddleware");
 
 const app = express();
 
@@ -26,7 +29,9 @@ app.use(cookieParser());
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
-    contentSecurityPolicy: false, // managed by the frontend framework
+    contentSecurityPolicy: false, // API does not serve the frontend
+    referrerPolicy: { policy: "no-referrer" },
+    frameguard: { action: "deny" },
   }),
 );
 
@@ -56,16 +61,6 @@ app.use(
         return callback(null, true);
       }
 
-      // Allow local development origins automatically (localhost & 127.0.0.1 on any port)
-      if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalizedOrigin)) {
-        return callback(null, true);
-      }
-
-      // Allow ngrok domains during testing
-      if (/^https:\/\/.*\.ngrok-free\.(app|dev)$/.test(normalizedOrigin)) {
-        return callback(null, true);
-      }
-
       const corsError = new Error("CORS policy: Origin not allowed");
       corsError.statusCode = 403;
       return callback(corsError);
@@ -76,25 +71,31 @@ app.use(
       "Authorization",
       "X-Requested-With",
       "Accept",
+      "X-CSRF-Token",
     ],
     credentials: true,
     optionsSuccessStatus: 200,
   }),
 );
 
-app.set("trust proxy", 1);
+app.set("trust proxy", environment.isProduction ? 1 : 0);
 
 // ── Paystack webhook needs raw body BEFORE express.json() ────────────────────
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
 
 // ── Body Parsers ─────────────────────────────────────────────────────────────
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
-// ── Global Rate Limiter — 500 req/15 min per IP ──────────────────────────────
+// Cookie-authenticated state-changing requests must come from a trusted origin
+// and carry the signed double-submit CSRF token.
+app.use(requireTrustedOrigin);
+app.use(requireCsrf);
+
+// ── Global Rate Limiter ──────────────────────────────────────────────────────
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 500,
+  max: environment.isProduction ? 500 : 5000,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -104,16 +105,24 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// ── Auth Rate Limiter — 20 req/15 min per IP (Brute-Force Protection) ───────
+// ── Auth Rate Limiter — Brute-Force Protection ───────
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: environment.isProduction ? 20 : 500,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
     message: "Too many authentication attempts. Please try again in 15 minutes.",
   },
+});
+
+const contactLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: environment.isProduction ? 10 : 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many contact requests. Please try again later." },
 });
 
 // ── Health Check ─────────────────────────────────────────────────────────────
@@ -132,7 +141,7 @@ app.get("/health", (_req, res) => {
 });
 
 // ── Routes ───────────────────────────────────────────────────────────────────
-app.use("/api/auth", authLimiter, authenticationRoutes);
+app.use("/api/auth", authenticationRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/certificates", certificatesRoutes);
 app.use("/api/payments", paymentsRoutes);
@@ -143,7 +152,9 @@ app.use("/api/projects", projectsRoutes);
 app.use("/api/ratings", ratingsRoutes);
 app.use("/api/submissions", submissionsRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
-app.use("/api/contact", contactRoutes);
+app.use("/api/contact", contactLimiter, contactRoutes);
+app.use("/api/courses", coursesRoutes);
+app.use("/api/badges", badgesRoutes);
 
 // ── Global Error Handler ─────────────────────────────────────────────────────
 app.use((error, _req, res, _next) => {

@@ -84,6 +84,9 @@ const projectsSchema = new mongoose.Schema(
   },
 );
 
+projectsSchema.index({ ownerId: 1, createdAt: -1 });
+projectsSchema.index({ approvalStatus: 1, status: 1, createdAt: -1 });
+
 const Project = mongoose.models.Project || mongoose.model("Project", projectsSchema);
 
 module.exports = Project;
