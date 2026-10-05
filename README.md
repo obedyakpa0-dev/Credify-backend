@@ -110,29 +110,35 @@ credify-backend/
 ### Local Setup
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/obedyakpa0-dev/Credify-backend.git
    cd Credify-backend
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Configure environment variables**
+
    ```bash
    cp .env.example .env
    ```
+
    Edit `.env` and configure the required variables
 
 4. **Start MongoDB**
+
    ```bash
    # If running locally
    mongod
    ```
 
 5. **Run the server**
+
    ```bash
    # Development mode with hot reload
    npm run dev
@@ -148,24 +154,28 @@ credify-backend/
 
 ### Docker Setup
 
-1. **Build and run with Docker Compose**
+For the full application, use the repository-root setup in [`../README.md`](../README.md). To run only the backend and MongoDB:
+
+1. **Create your local environment file**
+
    ```bash
-   docker-compose up -d
+   cp .env.example .env
    ```
 
-2. **Check logs**
+2. **Build and start with Docker Compose**
+
    ```bash
-   docker-compose logs -f backend
+   docker compose up --build
    ```
 
 3. **Stop the services**
    ```bash
-   docker-compose down
+   docker compose down
    ```
 
 ## Environment Variables
 
-Create a `.env` file in the root directory with the following variables:
+For non-containerized backend development, create `credify_backend/.env` from `.env.example`. When running inside Docker, the database hostname must be the Compose service name `mongodb`; the root full-stack setup configures this automatically.
 
 ```env
 # Server Configuration
@@ -202,6 +212,7 @@ NGROK_DOMAIN=your-ngrok-domain
 ```
 
 **Important Security Notes:**
+
 - Never commit `.env` file to version control
 - Change `JWT_SECRET` in production to a strong, random string
 - Keep `PAYSTACK_SECRET_KEY` and `PAYSTACK_WEBHOOK_SECRET` confidential
@@ -210,22 +221,26 @@ NGROK_DOMAIN=your-ngrok-domain
 ## API Endpoints
 
 ### Health & Status
+
 - `GET /` - Welcome message
 - `GET /health` - Server health check
 - `GET /api/test` - Connection test
 
 ### Authentication
+
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
 - `POST /api/auth/refresh` - Refresh JWT token
 - `POST /api/auth/logout` - User logout
 
 ### User Profile
+
 - `GET /api/profile` - Get user profile
 - `PUT /api/profile` - Update user profile
 - `GET /api/profile/:id` - Get specific user profile
 
 ### Courses
+
 - `GET /api/courses` - List all courses
 - `POST /api/courses` - Create new course (admin)
 - `GET /api/courses/:id` - Get course details
@@ -234,49 +249,59 @@ NGROK_DOMAIN=your-ngrok-domain
 - `POST /api/courses/:id/enroll` - Enroll in course
 
 ### Certificates
+
 - `GET /api/certificates` - List user certificates
 - `GET /api/certificates/:id` - Get certificate details
 - `POST /api/certificates` - Create certificate (admin)
 
 ### Badges
+
 - `GET /api/badges` - List all badges
 - `POST /api/badges` - Create badge (admin)
 - `GET /api/badges/:id` - Get badge details
 
 ### Payments
+
 - `POST /api/payments` - Initiate payment
 - `GET /api/payments/:id` - Get payment status
 - `POST /api/payments/webhook` - Handle payment webhooks
 
 ### Leaderboard
+
 - `GET /api/leaderboard` - Get leaderboard
 - `GET /api/leaderboard/:id` - Get user ranking
 
 ### Projects
+
 - `GET /api/projects` - List projects
 - `POST /api/projects` - Create project
 - `GET /api/projects/:id` - Get project details
 - `PUT /api/projects/:id` - Update project
 
 ### Submissions
+
 - `POST /api/submissions` - Submit project work
 - `GET /api/submissions/:id` - Get submission details
 - `PUT /api/submissions/:id/grade` - Grade submission (instructor)
 
 ### Ratings
+
 - `POST /api/ratings` - Create/update rating
 - `GET /api/ratings/:id` - Get ratings for entity
 
 ### Dashboard
+
 - `GET /api/dashboard` - Get user dashboard data
 - `GET /api/dashboard/analytics` - Get analytics (admin)
 
 ### Admin
+
 - `GET /api/admin/users` - List all users (admin)
 - `PUT /api/admin/users/:id` - Update user (admin)
 - `DELETE /api/admin/users/:id` - Delete user (admin)
 
 ### Company
+
 - `GET /api/company` - Get company info
 - `PUT /api/company` - Update company info (admin)
 - `GET /api/company/members` - List company members
@@ -292,7 +317,9 @@ Authorization: Bearer <your-jwt-token>
 ```
 
 ### JWT Token Structure
+
 Tokens are issued upon successful login and include:
+
 - User ID
 - Email
 - Role
@@ -427,6 +454,7 @@ This project is licensed under the ISC License - see the [package.json](./packag
 ## Author
 
 **Obed Yakpa**
+
 - GitHub: [@obedyakpa0-dev](https://github.com/obedyakpa0-dev)
 - Repository: [Credify-backend](https://github.com/obedyakpa0-dev/Credify-backend)
 

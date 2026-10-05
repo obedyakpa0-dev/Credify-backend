@@ -6,18 +6,29 @@ services:
       - "5000:5000"
     env_file:
       - .env
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/credify
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     volumes:
       - .:/app
       - /app/node_modules
     command: npm run dev
+    restart: unless-stopped
 
   mongodb:
     image: mongo:7
     container_name: Credify-MongoDB
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test:
+        ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
 volumes:
   mongo-data:
