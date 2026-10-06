@@ -154,7 +154,7 @@ credify-backend/
 
 ### Docker Setup
 
-For the full application, use the repository-root setup in [`../README.md`](../README.md). To run only the backend and MongoDB:
+Docker Desktop with Compose v2 is required. To run only the backend API and MongoDB, run these commands from the backend repository folder:
 
 1. **Create your local environment file**
 
@@ -162,54 +162,28 @@ For the full application, use the repository-root setup in [`../README.md`](../R
    cp .env.example .env
    ```
 
-2. **Build and start with Docker Compose**
+For a basic local run, set `PAYMENT_PROVIDER=manual` and replace the example `JWT_SECRET` with a random local value. Paystack and SMTP credentials are optional; leave them blank unless testing those integrations. In PowerShell, use `Copy-Item .env.example .env`.
+
+2. **Build and start the API and database**
 
    ```bash
    docker compose up --build
    ```
+
+The API is available at <http://localhost:5000>; verify it at <http://localhost:5000/health>. Compose sets the container's MongoDB address to `mongodb://mongodb:27017/credify` and waits for MongoDB to become healthy. Do not change the container database hostname to `localhost`.
 
 3. **Stop the services**
    ```bash
    docker compose down
    ```
 
+Use `docker compose down --volumes` only when you also want to delete the local database. Never commit `.env` or use local development values in production.
+
+To run the **full application** with both repositories, follow the [frontend repository's full-stack Docker guide](https://github.com/quarmz77/credence-edgee#full-stack-docker-setup). It clones this backend as a sibling folder named `credify_backend` and starts the frontend, backend, and MongoDB together.
+
 ## Environment Variables
 
-For non-containerized backend development, create `credify_backend/.env` from `.env.example`. When running inside Docker, the database hostname must be the Compose service name `mongodb`; the root full-stack setup configures this automatically.
-
-```env
-# Server Configuration
-NODE_ENV=development
-PORT=5000
-
-# Database
-MONGO_URI=mongodb://127.0.0.1:27017/credify
-
-# JWT Configuration
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
-JWT_EXPIRES_IN=7d
-
-# Bcrypt Configuration
-BCRYPT_SALT_ROUNDS=12
-
-# CORS Configuration
-CORS_ORIGIN=*
-
-# Payment Configuration
-PAYMENT_PROVIDER=manual          # Options: manual, paystack
-PAYMENT_CURRENCY=GHS
-PAYMENT_CALLBACK_URL=http://localhost:5000/api/payments/callback
-
-# Paystack Integration (if using Paystack)
-PAYSTACK_BASE_URL=https://api.paystack.co
-PAYSTACK_SECRET_KEY=your-paystack-secret-key
-PAYSTACK_PUBLIC_KEY=your-paystack-public-key
-PAYSTACK_WEBHOOK_SECRET=your-webhook-secret
-
-# ngrok Configuration (for local webhook testing)
-NGROK_AUTHTOKEN=your-ngrok-auth-token
-NGROK_DOMAIN=your-ngrok-domain
-```
+For non-containerized backend development, create `.env` from `.env.example` and use `mongodb://127.0.0.1:27017/credify` when MongoDB runs directly on your computer. In Docker, Compose overrides `MONGO_URI` to use its `mongodb` service. Use the checked-in `.env.example` as the source of supported variables; do not copy production credentials into local setup.
 
 **Important Security Notes:**
 
