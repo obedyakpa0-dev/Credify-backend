@@ -31,4 +31,4 @@ Thumbs.db
 # Docker secrets / runtime
 *.pem
 *.key
-scripts/
+scripts/test-admin-password.js

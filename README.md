@@ -172,6 +172,14 @@ For a basic local run, set `PAYMENT_PROVIDER=manual` and replace the example `JW
 
 The API is available at <http://localhost:5000>; verify it at <http://localhost:5000/health>. Compose sets the container's MongoDB address to `mongodb://mongodb:27017/credify` and waits for MongoDB to become healthy. Do not change the container database hostname to `localhost`.
 
+The backend image includes `scripts/seed-admin.js`. To create an admin account, set `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, and optionally `SEED_ADMIN_NAME` in `.env`, then run:
+
+```bash
+docker compose exec backend npm run seed-admin
+```
+
+The script will not change an existing account unless `SEED_ADMIN_FORCE=true` is explicitly set. The password is read at runtime and is not included in the image. Do not commit `.env` or paste the password into a command that may be saved in shell history.
+
 3. **Stop the services**
    ```bash
    docker compose down

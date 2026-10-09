@@ -1,3 +1,4 @@
 node_modules
 .env
 .git
+scripts/test-admin-password.js

@@ -9,8 +9,11 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy application source code
-COPY . .
+# Copy runtime source, including the admin utilities used after deployment.
+COPY config ./config
+COPY src ./src
+COPY scripts ./scripts
+COPY server.js ./server.js
 
 # Change file ownership to non-root node user
 RUN chown -R node:node /app
