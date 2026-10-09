@@ -4,14 +4,18 @@ const { connectDb } = require("../config/db");
 const AuthenticationUser = require("../src/features/authentication/models/authenticationModel");
 const environment = require("../config/environment");
 
-const ADMIN_EMAIL = (process.env.SEED_ADMIN_EMAIL || "admin@credify.com").trim().toLowerCase();
+const ADMIN_EMAIL = (process.env.SEED_ADMIN_EMAIL || "admin@credify.com")
+  .trim()
+  .toLowerCase();
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD;
 const ADMIN_NAME = process.env.SEED_ADMIN_NAME || "Credify Admin";
 const FORCE_RESET = process.env.SEED_ADMIN_FORCE === "true";
 
 const seedAdmin = async () => {
   if (!ADMIN_PASSWORD) {
-    throw new Error("SEED_ADMIN_PASSWORD must be set before running this script");
+    throw new Error(
+      "SEED_ADMIN_PASSWORD must be set before running this script",
+    );
   }
 
   await connectDb();
@@ -21,7 +25,9 @@ const seedAdmin = async () => {
   });
 
   if (existingAdmin && !FORCE_RESET) {
-    console.log(`Admin already exists: ${ADMIN_EMAIL}. Set SEED_ADMIN_FORCE=true to reset it.`);
+    console.log(
+      `Admin already exists: ${ADMIN_EMAIL}. Set SEED_ADMIN_FORCE=true to reset it.`,
+    );
     return;
   }
 
@@ -58,9 +64,11 @@ const seedAdmin = async () => {
   console.log(`Admin account created: ${ADMIN_EMAIL}`);
 };
 
-seedAdmin().catch((error) => {
-  console.error("Failed to seed admin user:", error.message || error);
-  process.exitCode = 1;
-}).finally(async () => {
-  await mongoose.disconnect();
-});
+seedAdmin()
+  .catch((error) => {
+    console.error("Failed to seed admin user:", error.message || error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await mongoose.disconnect();
+  });
